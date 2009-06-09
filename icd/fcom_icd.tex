@@ -18,7 +18,6 @@
 \newcommand{\Group}{Group}
 \newcommand{\signal}{signal}
 \newcommand{\Signal}{Signal}
-\renewcommand{\revnum}{DRAFT-0-0}
 
 \newcommand{\cstl}[1]{{\tt #1}}
 
@@ -37,7 +36,7 @@
 
 \title{LCLS Fast Feedback Communication Infrastructure Interface Control Document}
 \author{Till Straumann}
-\date{April 23, 2009}
+\date{June 9, 2009}
 % \addreviewer{who}{what}
 
 \summary{%
@@ -46,7 +45,10 @@ implementing a low-latency, dedicated communication path for feedback
 and other applications.%
 }
 
+\renewcommand{\revnum}{DRAFT-0-1}
+
 \addchangehistory{000}{April 23, 2009}{All}{DRAFT}
+\addchangehistory{001}{June 9, 2009}{All}{Added protocol version number}
 
 \currentrevision{1}
 
@@ -143,6 +145,7 @@ defined:
 \item[Data Format]  \fcom{} shall ship \blob{}s in an atomical fashion.
                     A single \blob{} is comprised of
                     \begin{itemize}
+                       \item protocol version information
                        \item a unique identifier
                        \item data type and count information
                        \item a timestamp
@@ -301,6 +304,19 @@ data from the cache.
       The elementary entity of data or ``\blob{}'' is composed
       of
       \begin{description}
+		\item[Version] Protocol version information composed
+              of two pieces, `major' and `minor'. Changes of the
+              `major' version imply incompatible changes whereas
+              changes of the `minor' version imply backwards-compatible
+              extensions.
+
+              E.g., if a receiver was built for version $2.3$ it
+              shall reject a \blob{} of version $3.0$ but shall
+              accept a \blob{} of version $2.4$. Even though
+              certain new features may not be available, the
+              implementation guarantees that the subset of
+              features of versions $2.3$ and $2.4$ are.
+
         \item[ID] A universal, unique {\em ID} which is used by 
               sources and sinks to refer to a particular datum.
               \fcom{} locates a \blob{} in its cache based on the ID.

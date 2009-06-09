@@ -1,0 +1,704 @@
+\documentclass[11pt]{article}
+
+\usepackage{subfigure}
+\usepackage[usenames]{color}
+\usepackage{verbatim}
+
+\usepackage{lcls-article}
+
+\lclsdocumenttype{ICD}
+\lclsdocumentnumber{}
+\systemname{}
+
+\newcommand{\fcom}{FCOM}
+
+\newcommand{\blob}{blob}
+\newcommand{\Blob}{Blob}
+\newcommand{\group}{group}
+\newcommand{\Group}{Group}
+\newcommand{\signal}{signal}
+\newcommand{\Signal}{Signal}
+\renewcommand{\revnum}{DRAFT-0-0}
+
+\newcommand{\cstl}[1]{{\tt #1}}
+
+\newcommand{\note}[1]{
+	\begin{description}
+		\item[NOTE] #1
+	\end{description}
+}
+
+\newcommand{\example}[1]{
+	\begin{description}
+		\item[EXAMPLE] #1
+	\end{description}
+}
+
+
+\title{LCLS Fast Feedback Communication Infrastructure Interface Control Document}
+\author{Till Straumann}
+\date{April 23, 2009}
+% \addreviewer{who}{what}
+
+\summary{%
+The \acf{\fcom} provides hard- and software infrastructure 
+implementing a low-latency, dedicated communication path for feedback
+and other applications.%
+}
+
+\addchangehistory{000}{April 23, 2009}{All}{DRAFT}
+
+\currentrevision{1}
+
+%
+\keywords{\fcom}
+
+
+\begin{document}
+\maketitle
+\section{Introduction}
+In a large distributed control system some applications
+require data to be shipped between remote nodes in a
+deterministic way with low-latency. While the standard
+TCP/IP network provides the necessary connectivity
+it is inherently non-deterministic. A lot of hardware
+(physical network) and software infrastructure (drivers,
+network stack) is shared between applications which makes
+the real-time behavior unpredictable.
+
+In particular, a protocol that is designed to 
+provide reliability (e.g., TCP/Channel-Access) 
+is likely to exhibit non-deterministic timing
+because of flow-control, segmentation, retransmission
+and other features required to guarantee reliability.
+
+This document describes the interfaces between
+a proposed IP-Multicast/UDP based communication protocol,
+``\fcom{}'', and the application 
+and between internal layers. In order to reduce latencies
+dedicated networking hardware and software which are both
+entirely decoupled from the standard TCP/IP facilities
+shall be employed.
+
+\section{Definition of Terms}
+The following terms are used throughout this document
+\begin{description}
+
+\item[\Signal]
+   A {\em \signal} is a control-system parameter analogous
+   to an EPICS PV but since \fcom{} is not within the
+   scope of EPICS we want to avoid the term PV.
+\item[\Blob]
+   A {\em \blob} is an elementary unit of data shipped
+   by \fcom{}. It holds the ``value''%
+\footnote{
+   ``Value'' in this context includes attributes of
+   data such as timestamp, type etc.
+}
+   either read from
+   a \signal{} or destined to be written to a \signal{}.
+\item[\Group]
+   A {\em \group} is a set of \blob{}s which is bundled
+   together for transmission.
+\item[Nodes and Endpoints]
+   A {\em node} is defined as a computer
+   system which is ``participating'' in \fcom{}
+   (see sect.~\ref{lbl:participate}, {\em Connectivity}).
+   An {\em endpoint} is a logical entity
+   that is either a source or a sink of data. Multiple
+   endpoints (of either flavor) may be present on a
+   single node.
+\item[Frame]
+   The terms {\em frame} or {\em packet} refer to
+   Ethernet frames.
+\end{description}
+
+\section{Functional Requirements}
+The services of \fcom{} can be visualized as a
+``newsletter'' publishing service. There are
+`'sources'' of data (the editors) and ``sinks''
+(the readers). Readers have to subscribe to receive
+a copy of the newsletter and they periodically
+have to check their mailboxes to see if a new
+letter has arrived. Data flow is essentially
+unidirectional.
+
+More formally, the following functional requirements have been
+defined:
+\begin{description}
+\item[Technology]   \fcom{} shall be built on Gigabit Ethernet Technology.
+
+\item[Connectivity] \fcom{} shall provide connectivity between participating
+                    nodes for communication of \signal{}s.
+\label{lbl:participate}
+
+                    A node is ``participating'' in \fcom{} if it is
+                    \begin{itemize}
+                       \item physically connected to the GiGE LAN that provides
+                       the physical connections.
+                       \item running the necessary software to support
+                       the \fcom{} protocol.
+                    \end{itemize}
+
+\item[Data Format]  \fcom{} shall ship \blob{}s in an atomical fashion.
+                    A single \blob{} is comprised of
+                    \begin{itemize}
+                       \item a unique identifier
+                       \item data type and count information
+                       \item a timestamp
+                       \item status/quality information
+                       \item an array of ``count'' elements of the basic
+                             data type ``type''
+                    \end{itemize}
+                    At least the basic types \cstl{uint32\_t}, \cstl{int32\_t},
+                    \cstl{float} and \cstl{double} shall be supported.
+
+					The timestamp and other information apply to all
+                    the individual elements of a \blob{}.
+
+                    \note{The maximum size of the representation of a \blob{}
+                    is limited. It may not exceed the size of an Ethernet
+                    datagram excluding any protocol headers%
+\footnote{If, as explained below, for efficiency reasons \blob{}s are
+bundled into \group{}s then the size limit applies to the entire \group{}.}.}
+
+                    The semantics of the data are transparent
+                    to \fcom{} and entirely defined by the application.
+
+\item[Representation] Given the possibility that \fcom{} may interconnect
+                    a heterogeneous set of computer systems the
+                    usual problems with compatibility of data
+                    representation (endian-ness, floating-point format etc.) 
+                    arise. \fcom{} shall address these issues so that
+                    the elementary data types are converted on each
+                    node into their native representation.
+
+\item[Data Flow]    Data flow is initiated by the source endpoint and
+                    cached by \fcom{} on the sink node(s). Data sink 
+                    endpoints retrieve data from this cache.
+
+                    \note{There is no requirement for asynchronous
+                    notification of endpoints (e.g., via callbacks)
+                    but such a feature {\em may} be added in the future.}
+
+					\note{There is no requirement for data-sink
+                    endpoints to be able to ``enforce'' the source
+                    to produce new data. In fact, data-sink endpoints
+                    require no control whatsoever over when data
+                    are produced.}
+
+\item[Subscription]
+                    The implementation {\em may} require data-sink
+                    endpoints to {\em subscribe} to \fcom{} prior
+                    to being able to receive data.
+
+                    Subscription is considered a ``configuration''
+                    feature which does not require deterministic
+                    timing.
+
+                    The implementation {\em may} request data-sink
+                    endpoints to cancel subscription when the
+                    service is no longer needed.
+
+\item[Multidrop]    \Blob{}s that originate at any data-source endpoint
+                    shall be delivered to any data-sink endpoint that wants
+                    to receive them. There may be multiple sinks
+                    subscribing to a single \blob{}. The sinks may
+                    reside on any set of nodes.
+
+\item[Grouping]     Because of the Ethernet requirement
+                    the implementation {\em may} -- for
+                    efficiency reasons -- {\em require}
+                    the definition of {\em \group{}s} of
+                    \blob{}s which are transmitted in a single
+                    Ethernet frame.
+ 
+\item[Latency]      \fcom{} makes a best-effort attempt to deliver 
+                    a \blob{} from source to sink endpoint in 
+                    less than 500us. Due to the complexity
+                    of Ethernet technology which was not
+                    designed with deterministic timing in mind
+                    the author does not see how a design
+                    could {\em guarantee} a hard limit on
+                    latency.
+
+                    At the time of this writing -- after consultation
+                    with other experts from SLAC and CISCO -- there
+                    are still open questions as to the scalability
+                    of IP multicast on a LAN.
+\end{description}
+
+\section{Architectural Overview}
+\fcom{} is designed to provide the necessary software infrastructure
+for meeting the functional requirements. We propose to use a ``layered''
+approach for implementing \fcom{}. The application layer presents
+an interface to application programs which hides (most of) the
+details of the underlying communication protocols. In fact,
+it may turn out that for efficiency reasons some of the lower
+layers might have to be changed, collapsed or eliminated but such
+modifications of the design are transparent to application 
+programs.
+
+At the application layer, the user simply writes and/or reads
+\blob{}s of data without having to bother with the details
+of the communication, e.g., with addressing, marshalling etc.
+
+At the lower levels, we propose to use well-known protocols
+from the TCP/IP world or simplified variants thereof.
+
+\section{Application Layer}
+The application layer defines the interface to the user.
+This interface should be as simple as possible to use and
+configure and hide as much detail as possible.
+
+The interface can be broken into two main parts. One part 
+that satisfies producers or ``sources'' of data and a
+second part that is used by ``sinks'' or consumers of
+data.
+
+In both cases the same simple and yet universal and flexible
+data format is used.
+
+The API to the application layer defines the elementary
+data layout and routines to group several \blob{}s for
+subsequent transmission and to initiate the data transfer.
+
+Consumers of data first must {\em subscribe} in order
+to receive data. This will cause \fcom{} to take the
+necessary steps to make sure the desired data are
+received from the network and cached in memory. 
+The API defines a routine for consumers to retrieve
+data from the cache.
+
+  \subsection{Design Goals}
+    \fcom{} should provide a simple interface for sending
+    data from one source to multiple receivers while hiding
+    all the details of the underlying transport mechanism.	
+
+    Strict separation of functionality was desired, i.e.,
+    no ``knowledge'' about the semantics of the shipped
+    data must be built into \fcom.
+
+    All the details of ``addressing'' should also be
+    transparent to applications. For sake of simplicity
+    it was deemed acceptable to use static/manual 
+    configuration tables or files for this purpose.
+    These configuration tables/files map a symbolic
+    name into an ID which encodes the necessary 
+    addressing information. In the future, a directory-lookup
+    service could be added.
+
+  \subsection{Data Layout}
+    The data layout used by \fcom{} was chosen so that it is
+    essentially {\em self-describing}. This allows for a clear
+    separation of functionality: \fcom{} can use the embedded
+    meta-data (such as `type' and `size' etc.) to properly
+    handle marshalling issues and allocate space etc. without
+    having to know anything about the semantics of the data
+    which are entirely defined by the application. 
+
+    \subsubsection{Elementary Items}
+      The elementary entity of data or ``\blob{}'' is composed
+      of
+      \begin{description}
+        \item[ID] A universal, unique {\em ID} which is used by 
+              sources and sinks to refer to a particular datum.
+              \fcom{} locates a \blob{} in its cache based on the ID.
+
+              The IDs are available to application programs as 
+              symbolic constants. {\em Their numerical representation
+              is defined by \fcom{} and opaque to the application.}
+
+              Applications must not make any assumptions about
+              the size of IDs or their semantics.
+
+              \fcom{} defines a data type for IDs which applications
+              shall use when they want to store an ID.
+
+              \fcom{} may define macros or subroutines for extracting
+              information embedded in IDs as well as for generating
+              IDs from other information.
+
+        \item[Timestamp] A timestamp marking the time when the
+              datum was produced or when it is to be applied
+              (but the exact semantics are defined by the application).
+
+        \item[Status] Status information associated with the datum.
+              Certain bits in the status word are defined by \fcom{}
+              others are defined by the application. \fcom{} ORs
+              ``it's'' bits into the status word when appropriate.
+
+        \item[Type] An element-type. Currently, the C99 types
+              {\tt int32\_t}, {\tt uint32\_t}, {\tt float} and
+              {\tt double} are supported.
+
+        \item[Count] An element-count. The datum consists of an
+              array of elements which all share the same status,
+              timestamp, type and ID.
+      \end{description}
+
+      \fcom{} defines a minimum alignment for \blob{}s and the
+      first element in the ``payload'' array. \fcom{} guarantees
+      the defined alignment when passing \blob{}s to the application
+      but it is the application's responsibility to ensure 
+      proper alignment when handing \blob{}s down to \fcom{}.
+
+    \subsubsection{Grouping}
+                    Because of the Ethernet requirement
+                    the implementation may require -- for
+                    efficiency reasons -- 
+                    the definition of {\em \group{}s} of
+                    \blob{}s which can be transmitted
+                    in a single Ethernet frame.
+                     
+                    \Group{}s essentially map to IP multicast
+                    groups.
+
+                    A \group{} has the following properties:
+                    \begin{itemize}
+                       \item A \group{} has a unique {\em \group{} ID}.
+                       \item Any \blob{} with a given ID is a member
+                             of exactly one group. The \group{}
+                             ID can therefore be a sub-part of the
+                             \blob{}'s ID.
+
+                       \item Multiple \blob{}s belonging to 
+                             the same \group{} can and must 
+                             be sent in a single Ethernet frame.
+
+                             \note{Even though breaking transmission
+                             of a single \group{} into multiple
+                             messages/frames would be conceptually 
+                             possible the requirement that a \group{}
+                             must always be sent as a whole simplifies
+                             the implementation and ensures that data
+                             objects composed of multiple \blob{}s are
+                             transmitted in an atomical fashion.}
+                              
+                       \item \Blob{}s belonging to different
+                             groups cannot be sent in a single
+                             frame.
+
+                       \item When a endpoint subscribes to a
+                             particular \blob{} the node hosting
+                             the communication endpoint actually
+                             subscribes to the \group{} and therefore
+                             \fcom{} has to process the entire \group{}
+                             (but this fact is hidden from the 
+                             receiving endpoint).
+                    \end{itemize}
+
+                    From these properties it follows that
+                    a smaller group size provides finer grained
+                    control at the expense of more and smaller Ethernet
+                    frames
+                    being sent (but these may not be distributed
+                    as widely as bigger groups because they are
+                    likely to have less subscribers).
+
+                    A smaller group size increases the total number
+                    of groups and thus consumes more resources on
+                    the Ethernet switches which have to maintain
+                    path information for each individual group.
+
+                    A larger group size reduces the protocol
+                    overhead (as long as the sink assembles
+                    as many \blob{}s as possible into a single
+                    transmission) and the use of resources on the
+                    switches for packet routing but larger groups
+                    are likely to be more widely distributed which
+                    increases overall network load.
+
+                    It shall be the responsibility of the system
+                    designer to define a suitable set of \group{}s.
+
+                    \fcom{} defines an upper bound on the number
+                    of \group{}s it supports.
+
+                    The \group{} a \blob{} is a member of shall
+                    implicitly map to a unique IP multicast address
+                    so that the data source and sink both ``know''
+                    what IP multicast address to use for communication.
+
+                    \note{Because of the requirement to bundle
+                    \blob{}s into \group{}s a particular 
+                    setpoint variable may require to be represented
+                    in multiple groups: Assume an application wants
+                    to control three parameters A, B and C which
+                    are grouped into G1. Another application (not
+                    executing at the same time) may want to control
+                    B,E and F by means of a group G2. Hence, depending
+                    on the application, B must be represented in group
+                    G1 or G2. Because a single ID can only be a
+                    member of a single group {\em two different IDs} 
+                    are needed to deal with the situation described
+                    above, e.g., G1\_B and G2\_B. The first application
+                    would subscribe to the former whereas the alternate
+                    application would subscribe to the latter ID.}
+
+	\subsubsection{Configuration}
+		Applications need to refer to particular \blob{}s using
+        their IDs. Furthermore, \fcom{} needs to determine
+        the \group{} a particular \blob{} is a member of.
+
+        It shall be permissible for the implementation
+        to use a {\em static database} for this purpose
+        of {\em association}. The database (e.g., header file)
+        contains definitions of \group{} and \blob{} IDs
+        which associate a symbolic name with the numerical
+        values of the IDs. Applications use the symbolic
+        names when referring to a particular \blob{}.
+
+        The database also defines the composition of \group{}s.
+
+        \Blob{} IDs are composed of a \signal{} part and a \group{}
+        part; each part ranges from zero to a maximum defined
+        (as symbolic constants) by \fcom. \fcom{} provides
+        macros to assemble a \blob{} ID from its parts.
+
+        The numerical IDs 0..7 are reserved.
+        
+		\example{The \signal{} part of the ID could be split
+          into a subsystem/IOC sub-part (10-bit) and a ``PV'' sub-part
+          (6-bit) to be defined by the subsystem designer.
+
+          This approach partitions the numerical range of
+          \signal{}s so that changes/additions to individual
+          subsystems are possible without having to renumber
+          (and recompile and restart) everything.
+
+          The \group{} IDs could be defined numerically identical
+          to the subsystem/IOC part of the \signal{} part.
+          However, note that the \group{} ID indicates
+          where a {\em value originates} and the subsystem/IOC
+          sub-part indicates where a \signal{} resides.
+
+          For a ``detector'' \signal{} the origin and \signal{}
+          location are identical. Hence such a ``PV'' would have identical
+          \group{} and subsystem IDs.
+
+          On the other hand, an ``actuator'' \signal{} originates
+          on a controller IOC targetting an actuator IOC.
+          Therefore, the \group{} (controller IOC) ID and
+          subsystem (actuator IOC) IDs would
+          be different.
+        }
+
+  \subsubsection{Alternative}
+  From the previous sections it should have become obvious
+  that grouping considerably complicates the general concept
+  and the API. 
+
+  If performance is sufficient, every \signal{} could simply
+  be assigned a single \group{} and the whole issue would
+  go away.
+
+  When configuring the IDs there would be no need to define
+  groups and the API for transmitting data would be symmetrical
+  to the receiving counterpart without any need for explicitly
+  assembling groups.
+
+  Finally, without grouping an actuator could simply read
+  a particular signal without having to switch subscription
+  when an application controlling a different set of actuators
+  is started. This would eliminate any conceptual difference
+  between detectors, controllers and actuators.
+
+  \subsection{API}
+  The C programming language according to the standard C99
+  shall be used.
+  The API to \fcom{} is defined in a header file {\tt fcom\_api.h}
+  (see appendix~\ref{app:api}) which
+  shall be protected from multiple inclusion and shall be usable from C++.
+
+  Most routines return an error status with zero indicating success
+  and nonzero an error condition. The return value specifies the type
+  of error encountered.
+    \subsubsection{Data Types}
+      \fcom{} defines data types for IDs and \blob{}s. A
+      \blob{} is a C {\tt struct} containing an ID,
+      type, count, timestamp, status and data.
+      \note{The application {\em must} set the ID, type and count
+      fields before handing a \blob{} to \fcom{}. The timestamp,
+      status and actual data are not interpreted or used by \fcom{}.
+      Their semantics are defined by the application.}
+    \subsubsection{Subscription}
+      Before an application is able to read data from the cache
+      it must subscribe with a call to
+      \begin{verbatim}
+        int fcomSubscribe(FcomID id);
+      \end{verbatim}
+      providing the ID of the desired \blob{}. Subscription is
+      not a ``real-time'' operation -- an unspecified amount of
+      time may elapse before data are cached.
+
+      In order to conserve resources an application should
+      unsubscribe a \blob{} when it is no longer needed.
+
+      \begin{verbatim}
+        int fcomUnsubscribe(FcomID id);
+      \end{verbatim}
+    \subsubsection{Reception}
+      \fcom{} maintains a cache of the data it receives from
+      the network. Applications can obtain a pointer to the
+      cached data using
+      \begin{verbatim}
+        int fcomGetBlob(FcomID id, FcomBlobRef *pp_blob);
+      \end{verbatim}
+      Note that applications {\em must not} alter the
+      contents of the data; they are only allowed to read
+      them. 
+
+      When fresh data arrive these are stored in a {\em different
+      area} so that the application does not have to worry
+      about locking the \blob{} or it being updated while
+      the application is accessing it. I.e., the sequence
+      \begin{verbatim}
+        FcomBlobRef before, after;
+
+          fcomGetBlob( SOME_ID, &before );
+
+          /* NEW DATA ARRIVE HERE */
+
+          fromGetBlob( SOME_ID, &after );
+      \end{verbatim}
+      yields two different pointers {\tt before} and
+      {\tt after}. Applications can use the timestamp fields
+      to determine if the data are ``fresh enough''.
+
+      Applications must release a \blob{} when it
+      is no longer needed so that \fcom{} can free
+      up resources:
+
+      \begin{verbatim}
+          fcomReleaseBlob( &before );
+          fromReleaseBlob( &after );
+      \end{verbatim}
+    \subsubsection{Transmission}
+      An endpoint who wishes to transmit data must first
+      allocate a group:
+      \begin{verbatim}
+          status = fcomAllocGroup( SOME_ID, &my_group );
+      \end{verbatim}
+      The group-part of the ID passed to this routine
+      defines the group ID. All \blob{}s of data subsequently
+      added to this \group{} must belong to the same \group{},
+      i.e., the GID-part of their IDs must match.
+
+      Data \blob{}s are added to the group by calling
+      \begin{verbatim}
+          status = fcomAddGroup(my_group, &a_blob);
+      \end{verbatim}
+      Note that the ID, type and element count of the \blob{}
+      must be set correctly before calling this routine.
+      {\tt fcomAddGroup()} is then executed repeatedly
+      to assemble the \group{}.
+
+      Eventually, the \group{} is transmitted by
+      \begin{verbatim}
+          status = fcomPutGroup(my_group);
+      \end{verbatim}
+      Note that at this point, \fcom{} takes over 
+      ``ownership'' of the group and associated resources
+      ({\tt fcomAddGroup()} copies the data \blob{}s
+      into the \group{} container, i.e., the user is
+      free so reuse the \blob{} data structure).
+
+      If a \group{} is not sent, i.e., if the
+      user decides not to execute {\tt fcomPutGroup()}
+      then the \group{} can be destroyed by
+      calling
+      \begin{verbatim}
+          fcomFreeGroup(my_group);
+      \end{verbatim}
+      \note{It is a programming error to call {\tt fcomFreeGroup()}
+            passing a \group{} that had already been given to
+            {\tt fcomPutGroup()} -- regardless of the status
+            returned by the latter.}
+     
+\section{Presentation Layer}
+We propose to use the {\em XDR} format. All data are encoded
+to XDR before being sent and decoded after being received.
+This ensures interoperability of different host architectures
+at a relatively low cost, at least on machines which use the
+IEEE floating-point representation.
+
+\section{Transport Layer}
+We propose to use the UDP protocol without computing a checksum
+(relying on the link-level checksum computed/checked by Ethernet hardware).
+
+Note that the size of UDP messages shall be restricted to
+fit an Ethernet frame.
+
+A {\em unique port number} must be assigned to \fcom{}. This port
+number must not be used for any other service than \fcom{}
+(on the network used by \fcom{}).
+The reason is that following standard ``socket'' semantics
+multicast frames are filtered at the {\em interface} not at the
+socket. I.e., even though an interested receiver subscribes
+to a multicast group using BSD {\tt setsockopt()} the
+group address is set on the interface, not the socket%
+\footnote{
+The consequence is that e.g., if application A1 receives
+from port P1 and application A2, which
+had subscribed to multicast traffic from G2, receives on
+port P2 then A1 still receives traffic sent to G2:P1
+(even though A1 had not subscribed to group G2).
+}.
+
+\section{Network, Link and Physical Layer}
+State-of-the-art Gigabit Ethernet technology with a
+standard (non-jumbo) frame size shall be employed.
+
+A minimal, {\em non-standard} (because of missing support for
+features such as fragmentation, options and others) IP protocol
+header is added. As explained in the next section, minimal support
+for IP is mandated by the requirement of IGMP support.
+
+Besides that, employing IP is useful
+for debugging and testing purposes so that the \fcom{}
+protocol stack can be tested in a regular networking environment
+where many tools are available.
+
+\subsection{Multicasting}
+The main distribution mechanism for \fcom{} is {\em Ethernet Multicast}
+which must ensure that messages are delivered only to interested
+nodes. This is accomplished by using a switched network which
+is able to save bandwidth when multicast is used.
+
+However,
+manual configuration of all required multicast delivery
+paths into the switches is extremely cumbersome and error-prone
+and shall therefore be avoided.
+
+State-of-the art switches usually implement {\em IGMP snooping},
+a technique
+which automatically takes care of maintaining the multicast
+distribution paths up to date and pruning ports where appropriate.
+Note, however, that the IGMP
+protocol is at {\em level 3} and therefore {\em requires}
+a minimal IP infrastructure. Note that RFC4541 (2.1.2.4) states
+that
+\begin{quotation}
+\noindent
+"All non-IPv4 multicast packets should continue to be
+flooded out to all remaining ports in the forwarding state..."
+\end{quotation}
+and also (2.1.2.5)
+\begin{quotation}
+\noindent
+"IP address based forwarding is preferred...".
+\end{quotation}
+
+Hence, \fcom{} shall implement minimal IP and IGMP-v2.
+The network hardware infrastructure shall provide the
+appropriate switches and router or querier.
+
+\appendix
+\pagebreak
+\section*{Appendix}
+
+\section{The \fcom{} API Header}
+\label{app:api}
+\verbatiminput{fcom_api.h}
+\end{document}

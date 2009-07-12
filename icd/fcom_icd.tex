@@ -2,7 +2,8 @@
 
 \usepackage{subfigure}
 \usepackage[usenames]{color}
-\usepackage{verbatim}
+\usepackage{listings}
+\lstset{basicstyle=\tt\small}
 
 \usepackage{lcls-article}
 
@@ -19,7 +20,7 @@
 \newcommand{\signal}{signal}
 \newcommand{\Signal}{Signal}
 
-\newcommand{\cstl}[1]{{\tt #1}}
+\newcommand{\cstl}[1]{{\lstinline+#1+}}
 
 \newcommand{\note}[1]{
 	\begin{description}
@@ -36,7 +37,7 @@
 
 \title{LCLS Fast Feedback Communication Infrastructure Interface Control Document}
 \author{Till Straumann}
-\date{June 9, 2009}
+\date{July 10, 2009}
 % \addreviewer{who}{what}
 
 \summary{%
@@ -49,8 +50,10 @@ and other applications.%
 
 \addchangehistory{000}{April 23, 2009}{All}{DRAFT}
 \addchangehistory{001}{June 9, 2009}{All}{Added protocol version number}
+\addchangehistory{002}{July 9, 2009}{All}{Added synchronous reception, error processing,
+                                          statistics, initialization}
 
-\currentrevision{1}
+\currentrevision{2}
 
 %
 \keywords{\fcom}
@@ -229,6 +232,13 @@ bundled into \group{}s then the size limit applies to the entire \group{}.}.}
                     with other experts from SLAC and CISCO -- there
                     are still open questions as to the scalability
                     of IP multicast on a LAN.
+\item[Error Handling] The \fcom{} API shall define a consistent way
+                    for determining if a service request (e.g.,
+                    subscription, transmission, data retrieval, etc.)
+                    was successful and shall provide some means
+                    for applications to determine the reason of failure.
+\item[Diagnostics]  \fcom{} should provide statistical information for
+                    diagnostic purposes.
 \end{description}
 
 \section{Architectural Overview}
@@ -379,18 +389,9 @@ data from the cache.
                              \blob{}'s ID.
 
                        \item Multiple \blob{}s belonging to 
-                             the same \group{} can and must 
+                             the same \group{} can 
                              be sent in a single Ethernet frame.
 
-                             \note{Even though breaking transmission
-                             of a single \group{} into multiple
-                             messages/frames would be conceptually 
-                             possible the requirement that a \group{}
-                             must always be sent as a whole simplifies
-                             the implementation and ensures that data
-                             objects composed of multiple \blob{}s are
-                             transmitted in an atomical fashion.}
-                              
                        \item \Blob{}s belonging to different
                              groups cannot be sent in a single
                              frame.
@@ -532,105 +533,296 @@ data from the cache.
   of error encountered.
     \subsubsection{Data Types}
       \fcom{} defines data types for IDs and \blob{}s. A
-      \blob{} is a C {\tt struct} containing an ID,
-      type, count, timestamp, status and data.
-      \note{The application {\em must} set the ID, type and count
-      fields before handing a \blob{} to \fcom{}. The timestamp,
+      \blob{} is a C {\tt struct} containing a protocol version,
+      ID, type, count, timestamp, status and data.
+
+      \note{The application {\em must} set the version, ID, type and count
+      fields before handing a \blob{} to \fcom{}.}
+
+       The timestamp,
       status and actual data are not interpreted or used by \fcom{}.
-      Their semantics are defined by the application.}
+      Their semantics are defined by the application.
+    \subsubsection{Error Handling}
+      All \fcom{} routines which possibly can fail return an \cstl{int}
+      value. A return value less than zero indicates failure. The
+      possible error status values are defined in the \cstl{<fcom\_api.h>}
+      header. Successful execution is indicated by a return value of 
+      zero.
+
+      In some cases and \fcom{} routine may fail due to an error
+      at a lower level, in many cases a system error. If the lower
+      level flags an error reason by means of the \cstl{errno} 
+      variable then the \cstl{errno} value is encoded into
+      the \fcom{} routine return value and may be retrieved using
+      the \cstl{FCOM\_ERR\_SYS\_ERRNO(status)} macro.
+      Another macro, \cstl{FCOM\_ERR\_IS\_SYS(status)} allows
+      the application to test if in fact there is such an encoded
+      \cstl{errno} value.
     \subsubsection{Subscription}
       Before an application is able to read data from the cache
       it must subscribe with a call to
       \begin{verbatim}
-        int fcomSubscribe(FcomID id);
+  int fcomSubscribe(FcomID id, int mode);
       \end{verbatim}
       providing the ID of the desired \blob{}. Subscription is
       not a ``real-time'' operation -- an unspecified amount of
       time may elapse before data are cached.
 
+      The \cstl{mode} argument normally is \cstl{FCOM\_ASYNC\_GET}.
+      Optionally, the implementation may implement \cstl{FCOM\_SYNC\_GET}.
+      In this mode, \cstl{fcomGetBlob()} may (depending on
+      it's \cstl{timeout\_ms} argument) block until new
+      data arrive.
+
+      \cstl{fcomSubscribe(id,FCOM\_SYNC\_GET)} returns
+      \cstl{FCOM\_ERR\_UNSUPP} if the implementation does not support
+      synchronous operation%
+\footnote{
+The expression
+{\tt (FCOM\_ERR\_UNSUPP != fcomSubscribe(FCOM\_ID\_ANY, FCOM\_SYNC\_GET))}
+is a possible run-time test for the availability of the
+synchronization feature%
+}.
+
+      \note{\cstl{id}s subscribed for synchronous operation
+      may consume more resources than ordinary asynchronous
+      subscriptions.}
+
       In order to conserve resources an application should
       unsubscribe a \blob{} when it is no longer needed.
 
       \begin{verbatim}
-        int fcomUnsubscribe(FcomID id);
+  int fcomUnsubscribe(FcomID id);
       \end{verbatim}
     \subsubsection{Reception}
       \fcom{} maintains a cache of the data it receives from
       the network. Applications can obtain a pointer to the
       cached data using
       \begin{verbatim}
-        int fcomGetBlob(FcomID id, FcomBlobRef *pp_blob);
+  int fcomGetBlob(FcomID id, FcomBlobRef *pp_blob, uint32_t timeout_ms);
       \end{verbatim}
-      Note that applications {\em must not} alter the
+      \note{Applications {\em must not} alter the
       contents of the data; they are only allowed to read
-      them. 
+      them.}
 
       When fresh data arrive these are stored in a {\em different
       area} so that the application does not have to worry
       about locking the \blob{} or it being updated while
       the application is accessing it. I.e., the sequence
       \begin{verbatim}
-        FcomBlobRef before, after;
+  FcomBlobRef before, after;
 
-          fcomGetBlob( SOME_ID, &before );
+  fcomGetBlob( SOME_ID, &before, 0 );
 
-          /* NEW DATA ARRIVE HERE */
+  /* NEW DATA ARRIVE HERE */
 
-          fromGetBlob( SOME_ID, &after );
+  fromGetBlob( SOME_ID, &after, 0 );
       \end{verbatim}
       yields two different pointers {\tt before} and
       {\tt after}. Applications can use the timestamp fields
       to determine if the data are ``fresh enough''.
+
+      The \cstl{timeout\_ms} argument is normally set to
+      zero which is equivalent to {\em asynchronous} operation.
+      If the \cstl{id} was subscribed for {\em synchronous}
+      operation with a \cstl{mode=FCOM\_SYNC\_GET} then
+      \cstl{fcomGetBlob()} accepts a nonzero \cstl{timeout\_ms}
+      argument. The routine then blocks for the given amount
+      of milli-seconds or until fresh data arrive -- whichever
+      occurs first. The return value is \cstl{FCOM\_ERR\_TIMEDOUT}
+      if no data arrive during the timeout period.
+      A given \cstl{id} {\em must} have been explicitly (and
+      successfully) subscribed for synchronous operation --
+      otherwise an attempt to call \cstl{fcomGetBlob()} with
+      a non-zero timeout yields \cstl{FCOM\_ERR\_UNSUPP}.
+      Executing \cstl{fcomGetBlob()} with a zero timeout 
+      argument is possible and effectively (i.e., in terms
+      of execution time) equivalent for either mode that
+      was specified for subscription.
+      \note{A synchronous \cstl{fcomGetBlob()} is {\em
+      not atomical} with respect to blocking for data arriving
+      and retrieving them.}
+      It only guarantees that the data
+      returned to the caller arrived after \cstl{fcomGetBlob()}
+      was called. It is theoretically possible that the blob
+      is updated more than once before the caller is scheduled
+      to execute and retrieve the blob -- this possible scenario
+      depends e.g., on the task-priority of the caller and CPU
+      load etc. A synchronous \cstl{fcomGetBlob()} does guarantee,
+      however, that the blob was updated {\em at least once}
+      since the routine was started. As in asynchronous mode
+      the caller may use e.g., the blob's timestamp to determine
+      if data are ``valid'' or ``fresh enough''.
 
       Applications must release a \blob{} when it
       is no longer needed so that \fcom{} can free
       up resources:
 
       \begin{verbatim}
-          fcomReleaseBlob( &before );
-          fromReleaseBlob( &after );
+  fcomReleaseBlob( &before );
+  fromReleaseBlob( &after );
       \end{verbatim}
     \subsubsection{Transmission}
       An endpoint who wishes to transmit data must first
       allocate a group:
       \begin{verbatim}
-          status = fcomAllocGroup( SOME_ID, &my_group );
+  status = fcomAllocGroup( SOME_ID, &my_group );
       \end{verbatim}
       The group-part of the ID passed to this routine
       defines the group ID. All \blob{}s of data subsequently
       added to this \group{} must belong to the same \group{},
       i.e., the GID-part of their IDs must match.
 
+      It is admissible to pass \cstl{FCOM\_ID\_ANY} in which
+      case the GID of the group is defined by the first
+	  blob added with a GID different from \cstl{FCOM\_GID\_ANY}.
+
       Data \blob{}s are added to the group by calling
       \begin{verbatim}
-          status = fcomAddGroup(my_group, &a_blob);
+  status = fcomAddGroup(my_group, &a_blob);
       \end{verbatim}
-      Note that the ID, type and element count of the \blob{}
-      must be set correctly before calling this routine.
+      \note{The protocol version, ID, type and element
+      count of the \blob{}
+      must be set correctly before calling this routine.}
       {\tt fcomAddGroup()} is then executed repeatedly
       to assemble the \group{}.
 
+      It is admissible for the GID part of the ID to
+      be \cstl{FCOM\_GID\_ANY} in which case it is defined
+      by the group.
+
       Eventually, the \group{} is transmitted by
       \begin{verbatim}
-          status = fcomPutGroup(my_group);
+  status = fcomPutGroup(my_group);
       \end{verbatim}
-      Note that at this point, \fcom{} takes over 
+      \note{At this point, \fcom{} takes over 
       ``ownership'' of the group and associated resources
       ({\tt fcomAddGroup()} copies the data \blob{}s
       into the \group{} container, i.e., the user is
-      free so reuse the \blob{} data structure).
+      free so reuse the \blob{} data structure).}
 
       If a \group{} is not sent, i.e., if the
       user decides not to execute {\tt fcomPutGroup()}
       then the \group{} can be destroyed by
       calling
       \begin{verbatim}
-          fcomFreeGroup(my_group);
+  fcomFreeGroup(my_group);
       \end{verbatim}
       \note{It is a programming error to call {\tt fcomFreeGroup()}
             passing a \group{} that had already been given to
             {\tt fcomPutGroup()} -- regardless of the status
             returned by the latter.}
+    \subsubsection{Statistics}
+      Two entry points for obtaining statistics information are
+      provided:
+      \begin{verbatim}
+  void fcomDumpStats(FILE *f);
+      \end{verbatim}
+      prints user-readable information to a \cstl{stdio}-stream
+      \cstl{f}, which may be \cstl{NULL}, in which case
+      the \cstl{stdout} is used.
+
+      In some cases it is desirable for the application to obtain
+      specific information in numerical format. For these cases
+      the routine
+      \begin{verbatim}
+  int fcomGetStats(int n_keys, uint32_t key_arr[], uint64_t value_arr[]);
+      \end{verbatim}
+      was implemented. This routine retrieves a bunch of values
+      corresponding to a number of ``keys''. The user submits an
+      array of dimension \cstl{n\_keys} of numerical ``keys''
+      as well as a ``response''-array (of the same dimension) which
+      designates a storage area for the routine to deposit the
+      values associated with the given keys.
+
+      The recognized keys corresponding to specific information
+      are defined in the \cstl{<fcom\_api.h>} header.
+ 
+      \note{The returned information is valid only if the
+      routine returns zero, i.e., if {\em all} supplied keys
+      were recognized.}
+
+      Currently, all internal counters are 32-bit wide. The
+      routine uses 64-bit values for sake of future enhancements.
+
+      \note{The implementation may rely on 32-bit counters
+      being accessed/copied consistently/atomically by the CPU and thus
+      may not use any mutual exclusion mechanism to read counters.}
+
+      This means that values corresponding to multiple keys
+      may not be read in an atomical fashion -- even though
+      they were supplied to the same call, e.g.:
+      \begin{verbatim}
+  uint32_t keys[2] = {
+    FCOM_STAT_RX_NUM_BLOBS_RECV,
+    FCOM_STAT_RX_NUM_BLOBS_RECV
+  };
+  uint64_t vals[2];
+  fcomGetStats(2, keys, vals);
+  if ( vals[1] != vals[2] )
+    printf("No surprise\n");
+      \end{verbatim}
+      asks for the same key -- the number of \blob{}s received --
+      twice. However, it is possible that the two returned values
+      differ since a new \blob{} might have arrived/been processed
+      between reading the counter twice.
+
+    \subsubsection{Initialization}
+      Before utilizing \fcom{} an application must initialize
+      the facility using
+      \begin{verbatim}
+  int fcomInit(const char *mcast_g_prefix, unsigned n_bufs);
+      \end{verbatim}
+      The \cstl{mcast\_g\_prefix} argument is a string of
+      the format
+      \begin{verbatim}
+  <multicast IP prefix> [ ':' <port number> ]
+      \end{verbatim}
+      The multicast IP prefix must be a (valid) multicast
+      IP address that must not overlap the range
+      \cstl{FCOM\_GID\_MIN}..\cstl{FCOM\_GID\_MAX}. This
+      prefix is used for all transactions by all data
+      sinks and sources. An optional port number may
+      also be specified. If no port number is given then
+      \cstl{FCOM\_PORT\_DEFLT} is used.
+
+      \note{All nodes participating in \fcom{} {\em must} use the
+      same prefix and port number.}
+
+      The \cstl{n\_bufs} argument is used to configure the
+      number of buffers for \blob{}s \fcom{} should create.
+      Buffers are only used by an \fcom{} receiver. Hence,
+      setting \cstl{n\_bufs} to zero indicates that the
+      receiver is unused -- this is recommended for applications
+      that only wish to transmit data because memory and
+      the \fcom{} port number can be saved%
+\footnote{Since it is usually not possible to let multiple
+applications running on a single node use the same port it
+is desirable, e.g., on a linux system with different
+processes executing an \fcom{} receiver and an \fcom{}
+transmitter, respectively, to instruct the transmitter
+{\em not} to attempt to use the reserved \fcom{} port since
+that may prevent the receiver process from using it.}.
+
+      Each \blob{} that \fcom{} receives is stored in
+	  a buffer which is released when the last reference
+      to a \blob{} is surrendered with \cstl{fcomReleaseBlob()}.
+
+      Buffers are managed in pools of different sizes
+      (e.g., 64, 128, 512 and 2048 bytes but the exact
+      amount of pools and their sizes can be determined
+      using \cstl{fcomDumpStats()} or \cstl{fcomGetStats()}).
+      The \cstl{n\_bufs} argument defines the total
+      number of buffers that are made available. This
+      number is divided up among the different pools with
+      pools for smaller-sized buffers being allocated a
+      bigger number of buffers.
+
+      Every subscribed \blob{} requires one buffer
+      which remains ``alive'' as long as a reference
+      to the \blob{} exists. Hence, \cstl{n\_bufs}
+      should be chosen according to the application's
+      needs.
      
 \section{Presentation Layer}
 We propose to use the {\em XDR} format. All data are encoded
@@ -643,8 +835,8 @@ IEEE floating-point representation.
 We propose to use the UDP protocol without computing a checksum
 (relying on the link-level checksum computed/checked by Ethernet hardware).
 
-Note that the size of UDP messages shall be restricted to
-fit an Ethernet frame.
+\note{The size of UDP messages shall be restricted to
+fit an Ethernet frame.}
 
 A {\em unique port number} must be assigned to \fcom{}. This port
 number must not be used for any other service than \fcom{}
@@ -716,5 +908,8 @@ appropriate switches and router or querier.
 
 \section{The \fcom{} API Header}
 \label{app:api}
-\verbatiminput{fcom_api.h}
+%\scriptsize
+%\verbatiminput{fcom_api.h}
+\lstset{basicstyle=\scriptsize, formfeed=\pagebreak}
+\lstinputlisting{fcom_api.h}
 \end{document}

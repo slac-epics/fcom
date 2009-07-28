@@ -1,9 +1,10 @@
  Usage Notes: 
 
  - To let an application use FCOM
-   o #include <fcom_api.h>
-   o link with -lfcomBSD (for FCOM over the regular TCP/IP stack)
-   o link with -lfcom    (for FCOM over the dedicated stack *** NOT IMPLEMENTED YET ***)
+
+    o #include <fcom_api.h>
+    o link with -lfcomBSD (for FCOM over the regular TCP/IP stack)
+    o link with -lfcom    (for FCOM over the dedicated stack *** NOT IMPLEMENTED YET ***)
 
  - Programming (API) documentation is available in 'doc/fcom_icd.pdf'.
 
@@ -19,5 +20,6 @@
           
 
  Build Note:
+
  - the 'udpComm' module must be checked out of the *** SSRL REPOSITORY ***
    into the 'src' subdirectory.

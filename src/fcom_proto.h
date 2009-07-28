@@ -13,7 +13,7 @@
 extern "C" {
 #endif
 
-/* $Id$ */
+/* $Id: fcom_proto.x,v 1.1.1.1 2009/07/28 17:57:06 strauman Exp $ */
 #include <stdint.h>
 #include <fcom_api.h>
 /* For testing purposes we want a second minor version */

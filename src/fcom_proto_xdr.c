@@ -4,7 +4,7 @@
  */
 
 #include "fcom_proto.h"
-/* $Id$ */
+/* $Id: fcom_proto.x,v 1.1.1.1 2009/07/28 17:57:06 strauman Exp $ */
 #define xdr_uint32_t xdr_u_int
 /* No point in transporting 16-bit integers.
  * XDR demands that these be encoded in 4 bytes

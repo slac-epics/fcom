@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: fcomP.h,v 1.1.1.1 2009/07/28 17:57:06 strauman Exp $ */
 #ifndef FCOM_PRIVATE_API_H
 #define FCOM_PRIVATE_API_H
 
@@ -54,7 +54,7 @@ int fcom_get_gid(FcomBlobRef pb, uint32_t *p_gid)
 {
 	switch ( FCOM_PROTO_MAJ_GET(pb->fc_vers) ) {
 		case FCOM_PROTO_VERSION_1x:
-			*p_gid = FCOM_GET_GID(pb->fcb_v1.fc_idnt);
+			*p_gid = FCOM_GET_GID(pb->fc_idnt);
 		return 0;
 
 		default:
@@ -153,7 +153,7 @@ fcom_send_stats(FILE *f)                  __attribute__((weak));
  */
 
 int
-fcom_get_blob_from_file(FILE *f, FcomBlobV1Ref pb, int avail);
+fcom_get_blob_from_file(FILE *f, FcomBlobRef pb, int avail);
 
 /* Write a blob in ASCII representation to a file 'f'.
  * 
@@ -164,7 +164,7 @@ fcom_get_blob_from_file(FILE *f, FcomBlobV1Ref pb, int avail);
  */
 
 int
-fcom_put_blob_to_file(FILE *f, FcomBlobV1Ref pb);
+fcom_put_blob_to_file(FILE *f, FcomBlobRef pb);
 
 /* Get RX and TX statistic, respectively. */
 extern int

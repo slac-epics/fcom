@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: xdr_dec.c,v 1.1.1.1 2009/07/28 17:57:07 strauman Exp $ */
 
 /* FCOM XDR decoder
  *
@@ -39,7 +39,7 @@ int      sz;
 		if ( (sz = FCOM_EL_SIZE(type)) < 0 )
 			return FCOM_ERR_INVALID_TYPE;
 
-		*p_sz = nelm * sz + sizeof(FcomV1Hdr);
+		*p_sz = nelm * sz + sizeof(FcomBlobHdr);
 
 		switch ( type ) {
 			case FCOM_EL_DOUBLE:
@@ -91,14 +91,12 @@ uint32_t     *xdro = xdr;
 
 		case FCOM_PROTO_VERSION_1x:
 		{
-			FcomBlobV1Ref pbv1 = & pb->fcb_v1;
+			FcomBlobRef pbv1 = pb;
 
-#ifdef FCOM_SMALLVERS
 			pbv1->fc_raw = (void*)FC_ALIGN(pbv1+1);
 			avail -= (uintptr_t)pbv1->fc_raw - (uintptr_t)(pbv1+1);
-#endif
 
-			sz = sizeof(*pbv1) - sizeof(pbv1->fc_vers);
+			sz = sizeof(pbv1->hdr) - sizeof(pbv1->fc_vers);
 
 			if ( (avail -= sz) < 0 )
 				return FCOM_ERR_NO_SPACE;

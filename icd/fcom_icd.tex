@@ -695,14 +695,14 @@ synchronization feature%
 
       Data \blob{}s are added to the group by calling
       \begin{verbatim}
-  FcomBlob blob;
+  FcomBlob a_blob;
   double   val;
 
-  blob.fc_vers   = FCOM_PROTO_VERSION_11;
-  blob.fcv1_idnt = MY_BLOB_ID; 
-  blob.fcv1_type = FCOM_EL_DOUBLE;
-  blob.fcv1_nelm = 1;
-  blob.fcv1_dbl  = &val;
+  a_blob.fc_vers = FCOM_PROTO_VERSION;
+  a_blob.fc_idnt = MY_BLOB_ID; 
+  a_blob.fc_type = FCOM_EL_DOUBLE;
+  a_blob.fc_nelm = 1;
+  a_blob.fc_dbl  = &val;
   
   val = 1.2345;
 

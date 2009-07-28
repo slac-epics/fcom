@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: blobio.c,v 1.1.1.1 2009/07/28 17:57:07 strauman Exp $ */
 
 /* Read/write a ASCII file (stdin) defining a sequence of
  * blobs and convert to/from C-representation.
@@ -104,7 +104,7 @@ int ch;
  * or a negative error code.
  */
 static int
-tsz(FcomBlobV1Ref pb)
+tsz(FcomBlobRef pb)
 {
 	switch ( pb->fc_type ) {
 		default:
@@ -130,7 +130,7 @@ tsz(FcomBlobV1Ref pb)
  */
 
 int
-fcom_get_blob_from_file(FILE *f, FcomBlobV1Ref pb, int avail)
+fcom_get_blob_from_file(FILE *f, FcomBlobRef pb, int avail)
 {
 uint32_t u;
 int      k,sz=0,err;
@@ -181,9 +181,9 @@ char     key[10];
 				fprintf(stderr,"No memory\n");
 				return -1;	
 			}
-#ifdef FCOM_SMALLVERS
+
 			pb->fc_raw = (void*)FC_ALIGN((pb+1));
-#endif
+
 			for ( k=0; k<pb->fc_nelm; k++ ) {
 				switch ( pb->fc_type ) {
 					default:
@@ -234,7 +234,7 @@ char     key[10];
  *          appended by caller.
  */
 int
-fcom_put_blob_to_file(FILE *f, FcomBlobV1Ref pb)
+fcom_put_blob_to_file(FILE *f, FcomBlobRef pb)
 {
 int     k;
 

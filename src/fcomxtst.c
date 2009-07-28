@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: fcomxtst.c,v 1.1.1.1 2009/07/28 17:57:06 strauman Exp $ */
 
 /* Test program for FCOM transmitter
  *
@@ -54,12 +54,12 @@ FcomGroup   g = 0;
 		goto bail;
 	}
 
-	nmb                 = 0;
-	pbl->fcb_v1.fc_idnt = 0;
+	nmb          = 0;
+	pbl->fc_idnt = 0;
 
-	while ( (err = fcom_get_blob_from_file(infile, &pb->fcb_v1, BLOBSZ)) > 0 ) {
+	while ( (err = fcom_get_blob_from_file(infile, pb, BLOBSZ)) > 0 ) {
 
-		if ( FCOM_GET_GID(pb->fcb_v1.fc_idnt) != FCOM_GET_GID(pbl->fcb_v1.fc_idnt) ) {
+		if ( FCOM_GET_GID(pb->fc_idnt) != FCOM_GET_GID(pbl->fc_idnt) ) {
 
 			wrapgrp(g, pbl, nmb);
 

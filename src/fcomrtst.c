@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: fcomrtst.c,v 1.1.1.1 2009/07/28 17:57:06 strauman Exp $ */
 
 /* Test program for FCOM receiver
  *
@@ -90,9 +90,9 @@ int         have_sync;
 	}
 
     /* subscribe all IDs found in the input file */
-	while ( (err = fcom_get_blob_from_file(infile, &pb->fcb_v1, BLOBSZ)) > 0 ) {
+	while ( (err = fcom_get_blob_from_file(infile, pb, BLOBSZ)) > 0 ) {
 		if ( nids < NUMID ) {
-			if ( (st = fcomSubscribe(ids[nids] = pb->fcb_v1.fc_idnt, have_sync)) ) {
+			if ( (st = fcomSubscribe(ids[nids] = pb->fc_idnt, have_sync)) ) {
 				fprintf(stderr,"fcomSubscribe() failed: %s\n", fcomStrerror(st));
 			} else {
 				nids++;
@@ -136,7 +136,7 @@ int         have_sync;
 		if ( (st=fcomGetBlob(ids[i], &pb1, 0)) ) {
 			fprintf(stderr,"fcomGetBlob(0x%08"PRIx32") failed: %s\n", ids[i], fcomStrerror(st));
 		} else {
-			fcom_put_blob_to_file(outfile, &pb1->fcb_v1);
+			fcom_put_blob_to_file(outfile, pb1);
 			fcomReleaseBlob(&pb1);
 		}
 	}

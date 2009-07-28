@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: xdr_enc.c,v 1.1.1.1 2009/07/28 17:57:07 strauman Exp $ */
 
 /* FCOM XDR encoder
  *
@@ -37,13 +37,13 @@ uint32_t     *xdro = xdr;
 
 		case FCOM_PROTO_VERSION_1x:
 		{
-			FcomBlobV1Ref pbv1 = & pb->fcb_v1;
+			FcomBlobRef pbv1 = pb;
 
 			/* make sure version encoded in ID matches fc_vers */
 			if ( FCOM_PROTO_MAJ_1 != FCOM_GET_MAJ(pbv1->fc_idnt) )
 				return FCOM_ERR_BAD_VERSION;
 
-			sz = sizeof(*pbv1) - sizeof(pbv1->fc_vers);
+			sz = sizeof(pbv1->hdr) - sizeof(pbv1->fc_vers);
 
 			if ( (avail -= sz) < 0 )
 				return FCOM_ERR_NO_SPACE;

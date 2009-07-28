@@ -1,4 +1,4 @@
-/* $Id: fcom_api.h,v 1.2 2009/07/12 16:00:12 strauman Exp $ */
+/* $Id: fcom_api.h,v 1.3 2009/07/28 17:59:24 strauman Exp $ */
 #ifndef FCOM_API_HEADER_H
 #define FCOM_API_HEADER_H
 
@@ -12,8 +12,6 @@ extern "C" {
 /* 
  * Major protocol version; changes of the
  * major version mark incompatible changes.
- * The 'fc' prefix goes only into the XDR
- * stream for some enhanced paranoia...
  *
  * Incompatible changes are:
  *   - change of the XDR encoded layout
@@ -25,13 +23,8 @@ extern "C" {
  *   - assignment of the reserved 'res3' field
  *     for a specific purpose.
  */
-#define FCOM_SMALLVERS
 
-#ifdef FCOM_SMALLVERS
 #define FCOM_PROTO_CATCAT(maj,min) 0x##maj##min
-#else
-#define FCOM_PROTO_CATCAT(maj,min) 0xfc##maj##min
-#endif
 #define FCOM_PROTO_CAT(maj,min)    FCOM_PROTO_CATCAT(maj,min)
 
 #define FCOM_PROTO_MAJ_1      1
@@ -158,19 +151,19 @@ typedef uint32_t FcomGID;
  * A blob of data.
  */
 
-/*
- * Version 1 layout
- */
-#ifdef FCOM_SMALLVERS
-typedef struct FcomV1Hdr_ {
-    uint8_t     vers;
-	uint8_t     type;
-	uint16_t    nelm;
+typedef struct FcomBlobHdr_ {
+    uint8_t     vers;  /* protocol vers. */
+	uint8_t     type;  /* data el. type  */
+	uint16_t    nelm;  /* # of elements  */
     FcomID      idnt;  /* unique ID      */
     uint32_t    res3;  /**** reserved ****/
     uint32_t    tsHi;  /* timestamp HI   */
     uint32_t    tsLo;  /* timestamp LO   */
     uint32_t    stat;  /* status of data */
+} FcomBlobHdr, *FcomBlobHdrRef;
+
+typedef struct FcomBlob_ {
+	FcomBlobHdr hdr;
 	union {
 	void        *p_raw;
 	float       *p_flt;
@@ -178,74 +171,40 @@ typedef struct FcomV1Hdr_ {
 	uint32_t	*p_u32;
 	int32_t     *p_i32;
 	int8_t      *p_i08;
-	}           dref;           
-	uint8_t     pad[32 - sizeof(FcomID) - 5*4 - sizeof(void*)];
-} FcomV1Hdr, *FcomV1HdrRef;
-#else
-typedef struct FcomV1Hdr_ {
-    uint32_t    vers;  /* proto vers.    */
-    FcomID      idnt;  /* unique ID      */
-    uint32_t    res3;  /**** reserved ****/
-    uint32_t    tsHi;  /* timestamp HI   */
-    uint32_t    tsLo;  /* timestamp LO   */
-    uint32_t    stat;  /* status of data */
-    uint32_t    type;
-    uint32_t    nelm;
-} FcomV1Hdr, *FcomV1HdrRef;
-#endif
-
-typedef union FcomBlobV1_ {
-    FcomV1Hdr     hdr;
-    struct {
-        FcomV1Hdr hdr;
-        uint32_t  dta[];
-    }           u32;
-    struct {
-        FcomV1Hdr hdr;
-        int32_t   dta[];
-    }           i32;
-    struct {
-        FcomV1Hdr hdr;
-        int8_t    dta[];
-    }           i08;
-    struct {
-        FcomV1Hdr hdr;
-        float     dta[];
-    }           flt;
-    struct {
-        FcomV1Hdr hdr;
-        double    dta[];
-    }           dbl;
-	struct {
-		FcomV1Hdr hdr;
-		void     *p_dta[];
-	}           ptr;
-} FcomBlobV1, *FcomBlobV1Ref;
-
-
-typedef union FcomBlob_ {
-    struct {
-#ifdef FCOM_SMALLVERS
-    uint8_t     vers;  /* protocol vers. */
-#else
-	uint32_t    vers;
-#endif
-    }           hdr;
-    FcomBlobV1  fcb_v1;
+	}           dref;  /* ptr to data    */
+/*	uint8_t     pad[32 - sizeof(FcomID) - 5*4 - sizeof(void*)]; */
 } FcomBlob, *FcomBlobRef;
 
+
 /* 
- * Helper macros to access the
- * array with the correct type.
+ * Helper macros to access blob fields.
+ *
+ * THESE MACROS SHOULD ALWAYS BE USED TO ENSURE
+ * COMPATIBILITY IF THE BLOB LAYOUT CHANGES.
  *
  * E.g., if you deal with a
  * 'float' array then use
  *
- *   for ( i=0; i<my_v1_blob.fc_nelm; i++ ) {
+ *   for ( i=0; i<my_blob.fc_nelm; i++ ) {
  *
- *      do_something( my_v1_blob.fc_flt[i] );
+ *      do_something( my_blob.fc_flt[i] );
  *
  *   }
+ *
+ * E.g.,
+ *
+ *  FcomBlob pb;
+ *
+ *    pb.fc_vers   = FCOM_PROTO_VERSION;
+ *    pb.fc_tsHi   = my_timestamp_high;
+ *    pb.fc_tsLo   = my_timestamp_low;
+ *    pb.fc_idnt   = MY_ID;
+ *    pb.fc_stat   = 0;
+ *    pb.fc_type   = FCOM_EL_UINT32;
+ *    pb.fc_nelm   = 1;
+ *    pb.fc_u32[0] = my_value;
+ *
+ *    fcomPutBlob( &pb );
  *
  */
 #define fc_vers   hdr.vers
@@ -258,63 +217,12 @@ typedef union FcomBlob_ {
 #define fc_type   hdr.type
 #define fc_nelm   hdr.nelm
 
-#ifdef FCOM_SMALLVERS
-#define fc_raw    hdr.dref.p_raw
-#define fc_u32    hdr.dref.p_u32
-#define fc_i32    hdr.dref.p_i32
-#define fc_i08    hdr.dref.p_i08
-#define fc_flt    hdr.dref.p_flt
-#define fc_dbl    hdr.dref.p_dbl
-#else
-#define fc_u32    u32.dta
-#define fc_i32    i32.dta
-#define fc_i08    i08.dta
-#define fc_flt    flt.dta
-#define fc_dbl    dbl.dta
-#endif
-
-
-/*
- * Helper macros to access fields
- * in a 'version 1' blob.
- *
- * E.g.,
- *
- *  FcomBlob pb;
- *
- *    pb.fc_vers     = FCOM_PROTO_VERSION_11
- *    pb.fcv1_tsHi   = my_timestamp_high;
- *    pb.fcv1_tsLo   = my_timestamp_low;
- *    pb.fcv1_idnt   = MY_ID;
- *    pb.fcv1_stat   = 0;
- *    pb.fcv1_type   = FCOM_EL_UINT32;
- *    pb.fcv1_nelm   = 1;
- *    pb.fcv1_u32[0] = my_value;
- *
- *    fcomPutBlob( &pb );
- */
-#define fcv1_idnt   fcb_v1.hdr.idnt
-#define fcv1_res3   fcb_v1.hdr.res3
-#define fcv1_tsHi   fcb_v1.hdr.tsHi
-#define fcv1_tsLo   fcb_v1.hdr.tsLo
-#define fcv1_stat   fcb_v1.hdr.stat
-#define fcv1_type   fcb_v1.hdr.type
-#define fcv1_nelm   fcb_v1.hdr.nelm
-
-#ifdef FCOM_SMALLVERS
-#define fcv1_raw    fcb_v1.hdr.dref.p_raw
-#define fcv1_u32    fcb_v1.hdr.dref.p_u32
-#define fcv1_i32    fcb_v1.hdr.dref.p_i32
-#define fcv1_i08    fcb_v1.hdr.dref.p_i08
-#define fcv1_flt    fcb_v1.hdr.dref.p_flt
-#define fcv1_dbl    fcb_v1.hdr.dref.p_dbl
-#else
-#define fcv1_u32    fcb_v1.u32.dta
-#define fcv1_i32    fcb_v1.i32.dta
-#define fcv1_i08    fcb_v1.i08.dta
-#define fcv1_flt    fcb_v1.flt.dta
-#define fcv1_dbl    fcb_v1.dbl.dta
-#endif
+#define fc_raw    dref.p_raw
+#define fc_u32    dref.p_u32
+#define fc_i32    dref.p_i32
+#define fc_i08    dref.p_i08
+#define fc_flt    dref.p_flt
+#define fc_dbl    dref.p_dbl
 
 
 /** ERROR HANDLING ***************************************************/
@@ -340,7 +248,7 @@ typedef union FcomBlob_ {
 #define FCOM_ERR_IS_SYS(st)     ( (st) < 0 && ((-(st)) & (1<<16)))
 #define FCOM_ERR_SYS_ERRNO(st)  ( FCOM_ERR_IS_SYS(st) ? (-(st)) & 0xffff : 0 )
 
-/* Convert error status into static string message.
+/* Convert error status into string message.
  * System errors encoded in FCOM_ERR_SYS() are
  * converted using strerror().
  *
@@ -723,32 +631,29 @@ fcomGetStats(int n_keys, uint32_t key_arr[], uint64_t value_arr[]);
  *    #include <fcom_api.h>
  *    #include <detector_xyz.h>
  *
- *    FcomGroup group;
+ *    FcomGroup group = 0;
  *    FcomBlob  blob;
  *    float     data[1];
  *    int       status;
  *
- *      group = 0;
  *      // obtain a group; use any ID belonging
  *      // to the target group.
  *      if ( (status = fcomAllocGroup(XYZ_TEMP_1, &group)) )
  *        goto bail;
  *
- *      // set version
- *      blob.fc_vers     = FCOM_PROTO_VERSION_11
- *
  *      // fill-in header info
- *      getTimestamp(&blob.fcb_v1);
- *      blob.fcv1_stat   = 0;
- *      blob.fcv1_type   = FCOM_EL_FLOAT;
- *      blob.fcv1_flt    = data;
+ *      blob.fc_vers     = FCOM_PROTO_VERSION;
+ *      getTimestamp(&blob);
+ *      blob.fc_stat     = 0;
+ *      blob.fc_type     = FCOM_EL_FLOAT;
+ *      blob.fc_flt      = data;
  *
  *      // fill-in data
- *      blob.fcv1_nelm   = 1;
- *      blob.fcv1_flt[0] = readADC_1();
+ *      blob.fc_nelm     = 1;
+ *      blob.fc_flt[0]   = readADC_1();
  *
  *      // tag with ID
- *      blob.fcv1_idnt   = XYZ_TEMP_1;
+ *      blob.fc_idnt     = XYZ_TEMP_1;
  *
  *      // add to group
  *      if ( (status = fcomAddGroup(group, &blob)) )
@@ -756,10 +661,10 @@ fcomGetStats(int n_keys, uint32_t key_arr[], uint64_t value_arr[]);
  *
  *      // use same version, timestamp, type, data
  *      // area and status for second blob:
- *      blob.fcv1_flt[0] = readADC_2();
+ *      blob.fc_flt[0]   = readADC_2();
  *
  *      // tag with ID
- *      blob.fcv1_id     = XYZ_PRESSURE;
+ *      blob.fc_id       = XYZ_PRESSURE;
  *
  *      // add to group
  *      if ( (status = fcomAddGroup(group, &blob)) )
@@ -775,9 +680,7 @@ fcomGetStats(int n_keys, uint32_t key_arr[], uint64_t value_arr[]);
  *         // print message if there was an error
  *         if ( status )
  *           fprintf(stderr,"FCOM error: %s\n", fcomStrerror(status));
- *
  *         fcomFreeGroup( group );
- *
 
  * C] Receiver subscribes to XYZ_TEMP_1
  *
@@ -795,11 +698,11 @@ fcomGetStats(int n_keys, uint32_t key_arr[], uint64_t value_arr[]);
  *      if ( 0 == fcomGetBlob( XYZ_TEMP_1, &p_blob, 0 ) ) {
  *        // access data; assume we know the version, type and 
  *        // count but could verify...
- *        if ( p_blob->fcv1_stat ) {
+ *        if ( p_blob->fc_stat ) {
  *          // handle bad status
  *        } else {
  *          // good data
- *          consumeData( p_blob->fcv1_flt[0] );
+ *          consumeData( p_blob->fc_flt[0] );
  *        }
  *        // done -- release blob
  *        fcomReleaseBlob( &p_blob );

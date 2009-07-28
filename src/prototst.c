@@ -40,7 +40,7 @@ fldcmp(const char *nm, uint32_t a, uint32_t b)
 int
 blobcmp(FcomBlob *pb, FcomBlob_XDR_ *pbx)
 {
-FcomBlobV1      *pbv1;
+FcomBlob        *pbv1;
 FcomBlobV1_XDR_ *pbxv1;
 int             err;
 void            *pd, *pdx;
@@ -51,7 +51,7 @@ int             sz;
 		return FCOM_ERR_BAD_VERSION;
 	}
 
-	pbv1  = &pb->fcb_v1;
+	pbv1  = pb;
 	pbxv1 = &pbx->FcomBlob_XDR__u._v1;
 
 	TSTFLD(pbv1, pbxv1, idnt);
@@ -210,7 +210,7 @@ getopt_data   god = {0};
 
 	nblobs = 0;
 
-	while ( (err = fcom_get_blob_from_file(infile, &pb[nblobs]->fcb_v1,BLOBSZ)) > 0 ) {
+	while ( (err = fcom_get_blob_from_file(infile, pb[nblobs], BLOBSZ)) > 0 ) {
 
 		if ( ( err = fcom_msg_append_blob(xmem, pb[nblobs]) ) < 0 ) {
 			fprintf(stderr,"XDR encoder error %s\n", fcomStrerror(err));
@@ -272,7 +272,7 @@ getopt_data   god = {0};
 				goto bail;
 			}
 			if ( outfile )
-				fcom_put_blob_to_file(outfile, &pb[i]->fcb_v1);
+				fcom_put_blob_to_file(outfile, pb[i]);
 			ptr += err;
 		}
 		if ( outfile )

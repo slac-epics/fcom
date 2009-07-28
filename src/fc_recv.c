@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: fc_recv.c,v 1.1.1.1 2009/07/28 17:57:06 strauman Exp $ */
 
 /* 
  * Implementation of the FCOM receiver's high-level parts.
@@ -534,7 +534,7 @@ fcomSubscribe(FcomID idnt, int supp_sync)
 int           err;
 uint32_t      gid, mcaddr;
 BufRef        buf;
-FcomBlobV1Ref pbv1;
+FcomBlobRef   pbv1;
 void          *garb;
 
 #if !defined(SUPPORT_SYNCGET)
@@ -571,13 +571,13 @@ void          *garb;
 				}
 			} else {
 				/* new entry; must add a empty dummy buffer */
-				if ( ( buf = fc_getb(sizeof(FcomBlobV1)) ) ) {
+				if ( ( buf = fc_getb(sizeof(FcomBlob)) ) ) {
 #ifdef PARANOIA
-					memset( buf->pld, 0, sizeof(FcomBlobV1) );
+					memset( buf->pld, 0, sizeof(FcomBlob) );
 #endif
 					buf->hdr.subCnt = 0;
-					pbv1            = (FcomBlobV1Ref)buf->pld;
-					pbv1->fc_vers   = FCOM_PROTO_VERSION_11;
+					pbv1            = (FcomBlobRef)buf->pld;
+					pbv1->fc_vers   = FCOM_PROTO_VERSION;
 					pbv1->fc_idnt   = idnt;
 					pbv1->fc_type   = FCOM_EL_NONE;
 
@@ -813,7 +813,7 @@ uint32_t        usec;
 			/* is this a placeholder that was produced
 			 * by subscription ?
 			 */
-			if ( FCOM_EL_NONE == ((FcomBlobV1Ref)buf->pld)->fc_type ) {
+			if ( FCOM_EL_NONE == ((FcomBlobRef)buf->pld)->fc_type ) {
 				*pp_blob = 0;
 				rval     = FCOM_ERR_NO_DATA;
 			} else {
@@ -1269,7 +1269,7 @@ uintptr_t key_off,n;
 	}
 
 	/* Create hash table */
-	key_off =   (uintptr_t) &((FcomBlobV1Ref)((BufRef)0)->pld)->fc_idnt
+	key_off =   (uintptr_t) &((FcomBlobRef)((BufRef)0)->pld)->fc_idnt
               - (uintptr_t)  ((BufRef)0);
 
 	/* 4 * round-up-to-power-of-2(nbuf) */
@@ -1289,7 +1289,7 @@ uintptr_t key_off,n;
 
 static void fc_buf_cleanup(SHTblEntry e)
 {
-	fc_relmc(FCOM_GET_GID( ((FcomBlobV1Ref)((BufRef)e)->pld)->fc_idnt));
+	fc_relmc(FCOM_GET_GID( ((FcomBlobRef)((BufRef)e)->pld)->fc_idnt));
 	fc_relb(e);
 }
 

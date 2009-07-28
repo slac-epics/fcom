@@ -51,7 +51,8 @@ and other applications.%
 \addchangehistory{000}{April 23, 2009}{All}{DRAFT}
 \addchangehistory{001}{June 9, 2009}{All}{Added protocol version number}
 \addchangehistory{002}{July 9, 2009}{All}{Added synchronous reception, error processing,
-                                          statistics, initialization}
+                                          statistics, initialization. Removed FCOM specific 
+                                          bits from a blob's status word.}
 
 \currentrevision{2}
 
@@ -350,24 +351,28 @@ data from the cache.
               (but the exact semantics are defined by the application).
 
         \item[Status] Status information associated with the datum.
-              Certain bits in the status word are defined by \fcom{}
-              others are defined by the application. \fcom{} ORs
-              ``it's'' bits into the status word when appropriate.
+              The semantics are defined by the application.
+%              Certain bits in the status word are defined by \fcom{}
+%              others are defined by the application. \fcom{} ORs
+%              ``it's'' bits into the status word when appropriate.
 
         \item[Type] An element-type. Currently, the C99 types
-              {\tt int32\_t}, {\tt uint32\_t}, {\tt float} and
+              {\tt int8\_t}, {\tt int32\_t}, {\tt uint32\_t}, {\tt float} and
               {\tt double} are supported.
 
         \item[Count] An element-count. The datum consists of an
               array of elements which all share the same status,
               timestamp, type and ID.
-      \end{description}
+		\item[Alignment]
+              \fcom{} guarantees that the array of data elements (``payload'')
+              in the cache is properly aligned for access by
+              a {\em SIMD} unit if present on a particular CPU architecture.
 
-      \fcom{} defines a minimum alignment for \blob{}s and the
-      first element in the ``payload'' array. \fcom{} guarantees
-      the defined alignment when passing \blob{}s to the application
-      but it is the application's responsibility to ensure 
-      proper alignment when handing \blob{}s down to \fcom{}.
+              When handing \blob{}s to \fcom{} the application is responsible
+              for the proper alignment of the \blob{} header and payload.
+              However, natural alignment is sufficient but maintaining
+              ``vector-alignment'' {\em may} result in higher efficiency.
+      \end{description}
 
     \subsubsection{Grouping}
                     Because of the Ethernet requirement
@@ -521,6 +526,9 @@ data from the cache.
   is started. This would eliminate any conceptual difference
   between detectors, controllers and actuators.
 
+  As a compromise, detector signals could still be \group{}ed
+  while assigning every actuator signal it's own ID.
+
   \subsection{API}
   The C programming language according to the standard C99
   shall be used.
@@ -534,12 +542,14 @@ data from the cache.
     \subsubsection{Data Types}
       \fcom{} defines data types for IDs and \blob{}s. A
       \blob{} is a C {\tt struct} containing a protocol version,
-      ID, type, count, timestamp, status and data.
+      ID, type, count, timestamp, status and a pointer to
+      the data array.
 
       \note{The application {\em must} set the version, ID, type and count
-      fields before handing a \blob{} to \fcom{}.}
+      fields as well as the pointer to the ``payload'' data array
+      before handing a \blob{} to \fcom{}.}
 
-       The timestamp,
+      The timestamp,
       status and actual data are not interpreted or used by \fcom{}.
       Their semantics are defined by the application.
     \subsubsection{Error Handling}
@@ -558,6 +568,12 @@ data from the cache.
       Another macro, \cstl{FCOM\_ERR\_IS\_SYS(status)} allows
       the application to test if in fact there is such an encoded
       \cstl{errno} value.
+
+      A routine
+      \begin{verbatim}
+  const char * fcomStrerror(int fcom_error_status);
+      \end{verbatim}
+      converts an error status into a human-readable ASCII-string.
     \subsubsection{Subscription}
       Before an application is able to read data from the cache
       it must subscribe with a call to
@@ -679,10 +695,21 @@ synchronization feature%
 
       Data \blob{}s are added to the group by calling
       \begin{verbatim}
+  FcomBlob blob;
+  double   val;
+
+  blob.fc_vers   = FCOM_PROTO_VERSION_11;
+  blob.fcv1_idnt = MY_BLOB_ID; 
+  blob.fcv1_type = FCOM_EL_DOUBLE;
+  blob.fcv1_nelm = 1;
+  blob.fcv1_dbl  = &val;
+  
+  val = 1.2345;
+
   status = fcomAddGroup(my_group, &a_blob);
       \end{verbatim}
       \note{The protocol version, ID, type and element
-      count of the \blob{}
+      count as well as the data pointer of the \blob{}
       must be set correctly before calling this routine.}
       {\tt fcomAddGroup()} is then executed repeatedly
       to assemble the \group{}.
@@ -699,7 +726,8 @@ synchronization feature%
       ``ownership'' of the group and associated resources
       ({\tt fcomAddGroup()} copies the data \blob{}s
       into the \group{} container, i.e., the user is
-      free so reuse the \blob{} data structure).}
+      free so reuse the \blob{} data structure and data 
+      array area after calling {\tt fcomAddGroup()}).}
 
       If a \group{} is not sent, i.e., if the
       user decides not to execute {\tt fcomPutGroup()}

@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: fcom_api.h,v 1.2 2009/07/12 16:00:12 strauman Exp $ */
 #ifndef FCOM_API_HEADER_H
 #define FCOM_API_HEADER_H
 
@@ -25,8 +25,13 @@ extern "C" {
  *   - assignment of the reserved 'res3' field
  *     for a specific purpose.
  */
+#define FCOM_SMALLVERS
 
+#ifdef FCOM_SMALLVERS
+#define FCOM_PROTO_CATCAT(maj,min) 0x##maj##min
+#else
 #define FCOM_PROTO_CATCAT(maj,min) 0xfc##maj##min
+#endif
 #define FCOM_PROTO_CAT(maj,min)    FCOM_PROTO_CATCAT(maj,min)
 
 #define FCOM_PROTO_MAJ_1      1
@@ -140,6 +145,15 @@ typedef uint32_t FcomGID;
 #define FCOM_EL_INT8    5
 #define FCOM_EL_INVAL   6
 
+#define FCOM_EL_TYPE(t) ((t) & 0xf)
+#define FCOM_EL_SIZE(t) (  \
+	FCOM_EL_FLOAT  == (t) ? sizeof(float)    : \
+	FCOM_EL_DOUBLE == (t) ? sizeof(double)   : \
+	FCOM_EL_UINT32 == (t) ? sizeof(uint32_t) : \
+	FCOM_EL_INT32  == (t) ? sizeof(int32_t)  : \
+	FCOM_EL_INT8   == (t) ? sizeof(int8_t)   : \
+    -1 )
+
 /*
  * A blob of data.
  */
@@ -147,6 +161,27 @@ typedef uint32_t FcomGID;
 /*
  * Version 1 layout
  */
+#ifdef FCOM_SMALLVERS
+typedef struct FcomV1Hdr_ {
+    uint8_t     vers;
+	uint8_t     type;
+	uint16_t    nelm;
+    FcomID      idnt;  /* unique ID      */
+    uint32_t    res3;  /**** reserved ****/
+    uint32_t    tsHi;  /* timestamp HI   */
+    uint32_t    tsLo;  /* timestamp LO   */
+    uint32_t    stat;  /* status of data */
+	union {
+	void        *p_raw;
+	float       *p_flt;
+	double      *p_dbl;
+	uint32_t	*p_u32;
+	int32_t     *p_i32;
+	int8_t      *p_i08;
+	}           dref;           
+	uint8_t     pad[32 - sizeof(FcomID) - 5*4 - sizeof(void*)];
+} FcomV1Hdr, *FcomV1HdrRef;
+#else
 typedef struct FcomV1Hdr_ {
     uint32_t    vers;  /* proto vers.    */
     FcomID      idnt;  /* unique ID      */
@@ -157,6 +192,7 @@ typedef struct FcomV1Hdr_ {
     uint32_t    type;
     uint32_t    nelm;
 } FcomV1Hdr, *FcomV1HdrRef;
+#endif
 
 typedef union FcomBlobV1_ {
     FcomV1Hdr     hdr;
@@ -180,12 +216,20 @@ typedef union FcomBlobV1_ {
         FcomV1Hdr hdr;
         double    dta[];
     }           dbl;
+	struct {
+		FcomV1Hdr hdr;
+		void     *p_dta[];
+	}           ptr;
 } FcomBlobV1, *FcomBlobV1Ref;
 
 
 typedef union FcomBlob_ {
     struct {
-    uint32_t    vers;  /* protocol vers. */
+#ifdef FCOM_SMALLVERS
+    uint8_t     vers;  /* protocol vers. */
+#else
+	uint32_t    vers;
+#endif
     }           hdr;
     FcomBlobV1  fcb_v1;
 } FcomBlob, *FcomBlobRef;
@@ -214,11 +258,20 @@ typedef union FcomBlob_ {
 #define fc_type   hdr.type
 #define fc_nelm   hdr.nelm
 
+#ifdef FCOM_SMALLVERS
+#define fc_raw    hdr.dref.p_raw
+#define fc_u32    hdr.dref.p_u32
+#define fc_i32    hdr.dref.p_i32
+#define fc_i08    hdr.dref.p_i08
+#define fc_flt    hdr.dref.p_flt
+#define fc_dbl    hdr.dref.p_dbl
+#else
 #define fc_u32    u32.dta
 #define fc_i32    i32.dta
 #define fc_i08    i08.dta
 #define fc_flt    flt.dta
 #define fc_dbl    dbl.dta
+#endif
 
 
 /*
@@ -248,11 +301,20 @@ typedef union FcomBlob_ {
 #define fcv1_type   fcb_v1.hdr.type
 #define fcv1_nelm   fcb_v1.hdr.nelm
 
+#ifdef FCOM_SMALLVERS
+#define fcv1_raw    fcb_v1.hdr.dref.p_raw
+#define fcv1_u32    fcb_v1.hdr.dref.p_u32
+#define fcv1_i32    fcb_v1.hdr.dref.p_i32
+#define fcv1_i08    fcb_v1.hdr.dref.p_i08
+#define fcv1_flt    fcb_v1.hdr.dref.p_flt
+#define fcv1_dbl    fcb_v1.hdr.dref.p_dbl
+#else
 #define fcv1_u32    fcb_v1.u32.dta
 #define fcv1_i32    fcb_v1.i32.dta
 #define fcv1_i08    fcb_v1.i08.dta
 #define fcv1_flt    fcb_v1.flt.dta
 #define fcv1_dbl    fcb_v1.dbl.dta
+#endif
 
 
 /** ERROR HANDLING ***************************************************/
@@ -663,41 +725,58 @@ fcomGetStats(int n_keys, uint32_t key_arr[], uint64_t value_arr[]);
  *
  *    FcomGroup group;
  *    FcomBlob  blob;
+ *    float     data[1];
+ *    int       status;
  *
+ *      group = 0;
  *      // obtain a group; use any ID belonging
  *      // to the target group.
- *      fcomAllocGroup(XYZ_TEMP_1, &group);
+ *      if ( (status = fcomAllocGroup(XYZ_TEMP_1, &group)) )
+ *        goto bail;
  *
  *      // set version
  *      blob.fc_vers     = FCOM_PROTO_VERSION_11
  *
  *      // fill-in header info
- *      getTimestamp(&blob);
+ *      getTimestamp(&blob.fcb_v1);
  *      blob.fcv1_stat   = 0;
  *      blob.fcv1_type   = FCOM_EL_FLOAT;
+ *      blob.fcv1_flt    = data;
  *
  *      // fill-in data
- *      blob.fcv1_count  = 1;
+ *      blob.fcv1_nelm   = 1;
  *      blob.fcv1_flt[0] = readADC_1();
  *
  *      // tag with ID
- *      blob.fcv1_id     = XYZ_TEMP_1;
+ *      blob.fcv1_idnt   = XYZ_TEMP_1;
  *
  *      // add to group
- *      fcomAddGroup(group, &blob);
+ *      if ( (status = fcomAddGroup(group, &blob)) )
+ *        goto bail;
  *
- *      // use same version, timestamp, type and status
- *      // for second blob:
+ *      // use same version, timestamp, type, data
+ *      // area and status for second blob:
  *      blob.fcv1_flt[0] = readADC_2();
  *
  *      // tag with ID
  *      blob.fcv1_id     = XYZ_PRESSURE;
  *
  *      // add to group
- *      fcomAddGroup(group, &blob);
+ *      if ( (status = fcomAddGroup(group, &blob)) )
+ *        goto bail;
  *
  *      // done; send off
- *      fcomPutGroup(group);
+ *      status = fcomPutGroup(group);
+ * 
+ *      // group is now gone, even if sending failed
+ *      group = 0;
+ *
+ *      bail:
+ *         // print message if there was an error
+ *         if ( status )
+ *           fprintf(stderr,"FCOM error: %s\n", fcomStrerror(status));
+ *
+ *         fcomFreeGroup( group );
  *
 
  * C] Receiver subscribes to XYZ_TEMP_1

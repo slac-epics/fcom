@@ -18,10 +18,12 @@ include $(TOP)/configure/RULES
 #  ADD RULES AFTER THIS LINE
 
 ../%.pdf: ../%.tex fcom_api.h
-	cd ..; pdflatex $(^:../%=%); pdflatex $(^:../%=%)
+	cd ..; pdflatex $(<:../%=%); pdflatex $(<:../%=%)
 
 ifndef T_A
 # EPICS Makefile system quirk; they should use :: everywhere...
 realclean::
 	$(RM) $(DOCS)
 endif
+
+.PRECIOUS: ../fcom_icd.pdf

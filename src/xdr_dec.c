@@ -1,4 +1,4 @@
-/* $Id: xdr_dec.c,v 1.2 2009/07/28 19:46:56 strauman Exp $ */
+/* $Id: xdr_dec.c,v 1.3 2009/07/28 22:19:43 strauman Exp $ */
 
 /* FCOM XDR decoder
  *
@@ -39,7 +39,7 @@ int      sz;
 		if ( (sz = FCOM_EL_SIZE(type)) < 0 )
 			return FCOM_ERR_INVALID_TYPE;
 
-		*p_sz = nelm * sz + sizeof(FcomBlobHdr);
+		*p_sz = nelm * sz + FC_ALIGN(sizeof(FcomBlobHdr));
 
 		switch ( type ) {
 			case FCOM_EL_DOUBLE:

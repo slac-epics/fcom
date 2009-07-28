@@ -1,4 +1,4 @@
-/* $Id: xdr_dec.c,v 1.1.1.1 2009/07/28 17:57:07 strauman Exp $ */
+/* $Id: xdr_dec.c,v 1.2 2009/07/28 19:46:56 strauman Exp $ */
 
 /* FCOM XDR decoder
  *
@@ -94,7 +94,7 @@ uint32_t     *xdro = xdr;
 			FcomBlobRef pbv1 = pb;
 
 			pbv1->fc_raw = (void*)FC_ALIGN(pbv1+1);
-			avail -= (uintptr_t)pbv1->fc_raw - (uintptr_t)(pbv1+1);
+			avail       -= (uintptr_t)pbv1->fc_raw - (uintptr_t)(pbv1+1);
 
 			sz = sizeof(pbv1->hdr) - sizeof(pbv1->fc_vers);
 
@@ -118,7 +118,7 @@ uint32_t     *xdro = xdr;
 				return FCOM_ERR_NO_SPACE;
 
 #ifdef __BIG_ENDIAN__
-			memcpy( pbv1+1, xdr, sz );
+			memcpy( pbv1->fc_raw, xdr, sz );
 #else
 			switch (pbv1->fc_type) {
 				case FCOM_EL_UINT32:
@@ -130,7 +130,7 @@ uint32_t     *xdro = xdr;
 				break;
 
 				case FCOM_EL_INT8:
-					memcpy( pbv1+1, xdr, sz );
+					memcpy( pbv1->fc_raw, xdr, sz );
 				break;
 
 				case FCOM_EL_DOUBLE:

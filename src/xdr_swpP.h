@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: xdr_swpP.h,v 1.1.1.1 2009/07/28 17:57:07 strauman Exp $ */
 #ifndef XDR_BYTESWAP_PRIVATE_H
 #define XDR_BYTESWAP_PRIVATE_H
 
@@ -46,9 +46,9 @@
              */
 			#define SWAPU32(x) __builtin_bswap32(x)
 		#else
-			static inline uint32_t swapu32(uint32_t x)
+			static __inline__ uint32_t swapu32(uint32_t x)
 			{
-				asm volatile("bswap %0":"=r"(x):"0"(x));
+				__asm__ volatile("bswap %0":"=r"(x):"0"(x));
 				return x;
 			}
 			#define SWAPU32(x) swapu32(x)
@@ -58,7 +58,7 @@
 
   #ifndef SWAPU32
     #warning "Should implement efficient byte-swapping for this CPU"
-	static inline uint32_t SWAPU32(uint32_t x)
+	static __inline__ uint32_t SWAPU32(uint32_t x)
 	{
 		x = ( (x<<16) & 0xffff0000 ) | ( (x>>16) & 0x0000ffff );
 		x = ( (x<< 8) & 0xff00ff00 ) | ( (x>> 8) & 0x00ff00ff );

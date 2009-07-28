@@ -1,4 +1,4 @@
-/* $Id: fcomrtst.c,v 1.1.1.1 2009/07/28 17:57:06 strauman Exp $ */
+/* $Id: fcomrtst.c,v 1.2 2009/07/28 19:46:56 strauman Exp $ */
 
 /* Test program for FCOM receiver
  *
@@ -154,6 +154,8 @@ int         have_sync;
 	rval = 0;
 
 bail:
+	if ( rval )
+		fcom_recv_stats(stderr);
 	fcom_exit();
 	free(pb);
 	return rval;

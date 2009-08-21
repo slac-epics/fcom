@@ -1,4 +1,4 @@
-/* $Id: fc_recv.c,v 1.1.1.1 2009/07/28 17:57:06 strauman Exp $ */
+/* $Id: fc_recv.c,v 1.2 2009/07/28 19:46:55 strauman Exp $ */
 
 /* 
  * Implementation of the FCOM receiver's high-level parts.
@@ -1245,7 +1245,7 @@ fc_recvr_stop()
 int
 fcom_recv_init(unsigned nbufs)
 {
-int       i,rval,ldsz;
+int       i,rval;
 uintptr_t key_off,n;
 
 	if ( nbufs == 0 )
@@ -1272,10 +1272,7 @@ uintptr_t key_off,n;
 	key_off =   (uintptr_t) &((FcomBlobRef)((BufRef)0)->pld)->fc_idnt
               - (uintptr_t)  ((BufRef)0);
 
-	/* 4 * round-up-to-power-of-2(nbuf) */
-	ldsz = fcom_nzbits(nbufs) + 2;
-
-	if ( ! ( bTbl = shtblCreate(ldsz, (unsigned long)key_off) ) ) {
+	if ( ! ( bTbl = shtblCreate(4 * nbufs, (unsigned long)key_off) ) ) {
 		fprintf(stderr,"Fatal Error: Unable to create FCOM hash table\n");
 		return FCOM_ERR_INTERNAL;
 	}

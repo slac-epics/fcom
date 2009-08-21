@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: shtbl.h,v 1.1.1.1 2009/07/28 17:57:07 strauman Exp $ */
 #ifndef SIMPLE_HASHTAB_H
 #define SIMPLE_HASHTAB_H
 
@@ -19,14 +19,16 @@ typedef struct SHTblRec_ *SHTbl;
 typedef uint32_t         SHTblKey;
 typedef void             *SHTblEntry;
 
-/* Create an empty hash table with 2^sz entries;
+/* Create an empty hash table with n_bucket entries;
+ * 'n_bucket' is up-aligned to the next power of two.
+ *
  * The storage layout of entry records is defined
  * by the application but the key can be found
  * at 'key_off' bytes from the start of an
- * entry record.
+ * entry record (and it must be properly aligned).
  */
 SHTbl
-shtblCreate(int ldsz, unsigned long key_off);
+shtblCreate(unsigned n_bucket, unsigned long key_off);
 
 /*
  * Destroy a hash table (but individual entries

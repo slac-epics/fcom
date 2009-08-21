@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: shtbl.c,v 1.1.1.1 2009/07/28 17:57:07 strauman Exp $ */
 
 #include "shtbl.h"
 #include <stdlib.h>
@@ -66,19 +66,44 @@ SHTblEntry e = shtbl->e[h];
 	return ( e || *(SHTblKey*)(e + shtbl->koff) != k ) ?  0 : e; 
 }
 
+/* binary search for MSB */
+static int msbpos(unsigned x)
+{
+int rval  = 0;
+int bitno = sizeof(x) * 8 / 2;
+unsigned m = -1;
 
-/* Create an empty hash table with 2^sz entries */
+	if ( 0 == x )
+		return -1;
+
+	m = m ^ (m>>bitno);	/* 0xffffffff ^ 0x0000ffff = 0xffff0000 */
+
+	while ( bitno ) {
+		if ( m & x ) {
+			rval += bitno;
+			x >>= bitno;
+		}
+		bitno>>=1;
+		m>>=bitno;
+	}
+	return rval;
+}
+
+/* Create an empty hash table with n_bucket entries */
 SHTbl
-shtblCreate(int ldsz, unsigned long key_off)
+shtblCreate(unsigned n_bucket, unsigned long key_off)
 {
 SHTbl tbl;
-int   sz = 1<<ldsz;
+int   ldsz = msbpos(n_bucket - 1) + 1;
+
 	/* Huge and extremely small tables not supported */
 	if ( ldsz > LDLIM || ldsz < 3 )
 		return 0;
 
-	tbl           = calloc(1, sizeof(*tbl) + sizeof(SHTblEntry)*sz);
-	tbl->sz       = sz;
+	n_bucket = 1<<ldsz;
+
+	tbl           = calloc(1, sizeof(*tbl) + sizeof(SHTblEntry)*n_bucket);
+	tbl->sz       = n_bucket;
 	tbl->ldsz     = ldsz;
 	tbl->koff     = key_off;
 	tbl->nentries = 0;

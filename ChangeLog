@@ -1,0 +1,11 @@
+2009-08-20 (T.S.)
+
+	* ChangeLog: added
+
+2009-08-20 (T.S.)
+
+	* src/shtbl.h, src/shtbl.c, src/fc_recv.c: changed API of
+	shtblCreate() to match (upcoming) linear-hash table implementation.
+	Size is no longer specified as a exponent to 2 but as the
+	desired bucket number directly. shtblCreate() rounds up to the
+	next power of two internally.

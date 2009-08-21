@@ -1,4 +1,4 @@
-/* $Id: shtbl.h,v 1.1.1.1 2009/07/28 17:57:07 strauman Exp $ */
+/* $Id: shtbl.h,v 1.2 2009/08/21 03:09:36 strauman Exp $ */
 #ifndef SIMPLE_HASHTAB_H
 #define SIMPLE_HASHTAB_H
 
@@ -38,7 +38,7 @@ shtblCreate(unsigned n_bucket, unsigned long key_off);
  * on every non-empty bucket.
  */
 void
-shtblDestroy(SHTbl shtbl, void (*cleanup)(SHTblEntry));
+shtblDestroy(SHTbl shtbl, void (*cleanup)(SHTblEntry, void *closure), void *closure);
 
 /*
  * Locate key/entry

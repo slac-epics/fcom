@@ -1,4 +1,4 @@
-/* $Id: fc_recv.c,v 1.2 2009/07/28 19:46:55 strauman Exp $ */
+/* $Id: fc_recv.c,v 1.3 2009/08/21 03:09:36 strauman Exp $ */
 
 /* 
  * Implementation of the FCOM receiver's high-level parts.
@@ -1284,7 +1284,7 @@ uintptr_t key_off,n;
 	return 0;
 }
 
-static void fc_buf_cleanup(SHTblEntry e)
+static void fc_buf_cleanup(SHTblEntry e, void *closure)
 {
 	fc_relmc(FCOM_GET_GID( ((FcomBlobRef)((BufRef)e)->pld)->fc_idnt));
 	fc_relb(e);
@@ -1310,7 +1310,7 @@ BufChunkRef r,p;
 	if ( bTbl ) {
 		__FC_LOCK_GRP();
 		__FC_LOCK();
-		shtblDestroy(bTbl, fc_buf_cleanup);
+		shtblDestroy(bTbl, fc_buf_cleanup, 0);
 		bTbl = 0;
 		__FC_UNLOCK();
 		__FC_UNLOCK_GRP();

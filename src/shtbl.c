@@ -1,4 +1,4 @@
-/* $Id: shtbl.c,v 1.1.1.1 2009/07/28 17:57:07 strauman Exp $ */
+/* $Id: shtbl.c,v 1.2 2009/08/21 03:09:36 strauman Exp $ */
 
 #include "shtbl.h"
 #include <stdlib.h>
@@ -116,14 +116,14 @@ int   ldsz = msbpos(n_bucket - 1) + 1;
  * are untouched.)
  */
 void
-shtblDestroy(SHTbl shtbl, void (*cleanup)(SHTblEntry))
+shtblDestroy(SHTbl shtbl, void (*cleanup)(SHTblEntry, void*), void *closure)
 {
 int i;
 	if ( cleanup ) {
 		__SHTBL_LOCK();
 		for ( i=0; i<shtbl->sz; i++ ) {
 			if ( shtbl->e[i] )
-				cleanup(shtbl->e[i]);
+				cleanup(shtbl->e[i], closure);
 		}
 		__SHTBL_UNLOCK();
 	}

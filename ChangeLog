@@ -1,5 +1,11 @@
 2009-08-20 (T.S.)
 
+	* src/shtbl.h, src/shtbl.c, src/fc_recv.c: changed API of
+	shtblDestroy(): 'cleanup' callback is now passed a 'closure'
+	pointer.
+
+2009-08-20 (T.S.)
+
 	* ChangeLog: added
 
 2009-08-20 (T.S.)

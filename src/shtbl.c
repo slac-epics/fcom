@@ -112,8 +112,8 @@ int   ldsz = msbpos(n_bucket - 1) + 1;
 }
 
 /*
- * Destroy a hash table (but individual entries
- * are untouched.)
+ * Destroy a hash table running an optional, user-provided
+ * 'cleanup()' routine on all remaining entries.
  */
 void
 shtblDestroy(SHTbl shtbl, void (*cleanup)(SHTblEntry, void*), void *closure)

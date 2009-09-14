@@ -1,4 +1,4 @@
-/* $Id: shtbl.h,v 1.2 2009/08/21 03:09:36 strauman Exp $ */
+/* $Id: shtbl.h,v 1.3 2009/08/21 06:39:57 strauman Exp $ */
 #ifndef SIMPLE_HASHTAB_H
 #define SIMPLE_HASHTAB_H
 
@@ -60,6 +60,13 @@ int
 shtblAdd(SHTbl shtbl, SHTblEntry entry);
 
 /*
+ * Like shtblAdd() but passes back the current entry
+ * in *p_entry if SHTBL_KEY_EXISTS is returned;
+ */
+int
+shtblFindAdd(SHTbl shtbl, SHTblEntry *p_entry);
+
+/*
  * Add new entry; if 'key' already exists then the
  * new entry replaces the existing one.
  *
@@ -76,7 +83,7 @@ shtblAdd(SHTbl shtbl, SHTblEntry entry);
 
 #define SHTBL_ADD_FAIL 1
 int
-shtblRpl(SHTbl shtbl, SHTblEntry *entry, int add_fail);
+shtblRpl(SHTbl shtbl, SHTblEntry *p_entry, int add_fail);
 
 /*
  * Remove an entry;

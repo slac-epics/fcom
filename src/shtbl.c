@@ -1,4 +1,4 @@
-/* $Id: shtbl.c,v 1.2 2009/08/21 03:09:36 strauman Exp $ */
+/* $Id: shtbl.c,v 1.4 2009/08/21 06:41:57 strauman Exp $ */
 
 #include "shtbl.h"
 #include <stdlib.h>
@@ -176,16 +176,18 @@ H          h;
  * RETURNS: zero on success, nonzero on error.
  */
 int
-shtblAdd(SHTbl shtbl, SHTblEntry entry)
+shtblFindAdd(SHTbl shtbl, SHTblEntry *p_entry)
 {
 H          h;
-int        rval = 0;
+int        rval  = 0;
+SHTblEntry entry = *p_entry;
 
 	__SHTBL_LOCK(shtbl);
 		h = getslot(shtbl, *KEYP(shtbl,entry));
 		if ( h < 0 ) {
 			rval = SHTBL_FULL;
 		} else if ( shtbl->e[h] ) {
+			*p_entry = shtbl->e[h];
 			rval = SHTBL_KEY_EXISTS;
 		} else {
 			/* add new entry */
@@ -195,6 +197,12 @@ int        rval = 0;
 	__SHTBL_UNLOCK(shtbl);
 
 	return rval;
+}
+
+int
+shtblAdd(SHTbl shtbl, SHTblEntry entry)
+{
+	return shtblFindAdd( shtbl, &entry );
 }
 
 /*

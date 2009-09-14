@@ -1,4 +1,9 @@
 2009-09-14 (T.S.)
+	* src/fc_init.c: replaced inet_pton() by inet_aton(). Unfortunately,
+	we need an ugly hack (rtems 4.9.2) to make inet_aton() declaration 
+	visible in <arpa/inet.h>.
+
+2009-09-14 (T.S.)
 	* src/fc_recv.c, src/fc_send.c: include <netinet/in.h> (for
 	htonl & friends).
 

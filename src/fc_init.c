@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: fc_init.c,v 1.1.1.1 2009/07/28 17:57:07 strauman Exp $ */
 
 /* FCOM Initialization.
  *
@@ -21,6 +21,11 @@
 #include <string.h>
 
 #include <netinet/in.h>
+
+/* ugliest of hacks to make inet_aton() declaration visible;
+ * RTEMS doesn't seem to define __BSD_VISIBLE...
+ */
+#define __BSD_VISIBLE 1
 #include <arpa/inet.h>
 
 uint32_t fcom_g_prefix = 0;
@@ -81,7 +86,7 @@ int            err;
 	if ( (col = strchr(str, ':')) )
 		*col++=0;
 
-	if ( 0 == inet_pton(AF_INET, str, &ina) ) {
+	if ( 0 == inet_aton(str, &ina) ) {
 		fprintf(stderr,"fcomInit: invalid multicast prefix (string in dot notation)\n");
 		fprintf(stderr,"Error: %s\n", strerror(errno));
 		return FCOM_ERR_INVALID_ARG;

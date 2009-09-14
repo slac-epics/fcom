@@ -1,4 +1,4 @@
-/* $Id: fc_recv.c,v 1.3 2009/08/21 03:09:36 strauman Exp $ */
+/* $Id: fc_recv.c,v 1.4 2009/08/21 06:39:57 strauman Exp $ */
 
 /* 
  * Implementation of the FCOM receiver's high-level parts.
@@ -65,6 +65,7 @@
 #include <fcomP.h>
 #include <xdr_dec.h>
 #include <sys/time.h>
+#include <netinet/in.h> /* for htonl & friends only */
 
 #include <config.h>
 

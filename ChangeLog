@@ -1,4 +1,8 @@
 2009-09-14 (T.S.)
+	* src/fc_recv.c, src/fc_send.c: include <netinet/in.h> (for
+	htonl & friends).
+
+2009-09-14 (T.S.)
 
 	* src/shtbl.h, src/shtbl.c: added shtblFindAdd().
 

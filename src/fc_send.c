@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: fc_send.c,v 1.1.1.1 2009/07/28 17:57:05 strauman Exp $ */
 
 /* 
  * Implementation of the FCOM sender's high-level parts.
@@ -13,6 +13,8 @@
 #include <xdr_dec.h>
 #include <stdio.h>
 #include <inttypes.h>
+
+#include <netinet/in.h> /* for htonl & friends only */
 
 static struct {
 	uint32_t n_msg;

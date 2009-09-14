@@ -1,3 +1,7 @@
+2009-09-14 (T.S.)
+
+	* src/shtbl.h, src/shtbl.c: added shtblFindAdd().
+
 2009-08-20 (T.S.)
 
 	* src/shtbl.h, src/shtbl.c, src/fc_recv.c: changed API of

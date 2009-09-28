@@ -1,3 +1,6 @@
+2009-09-28 (T.S.)
+	* src/fc_init.c: fcom_exit() must reset fcom_rsd to -1.
+
 2009-09-14 (T.S.)
 	* src/fc_init.c: replaced inet_pton() by inet_aton(). Unfortunately,
 	we need an ugly hack (rtems 4.9.2) to make inet_aton() declaration 

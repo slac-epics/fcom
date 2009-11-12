@@ -1,4 +1,4 @@
-/* $Id: fcom_api.h,v 1.3 2009/07/28 17:59:24 strauman Exp $ */
+/* $Id: fcom_api.h,v 1.4 2009/07/28 19:46:55 strauman Exp $ */
 #ifndef FCOM_API_HEADER_H
 #define FCOM_API_HEADER_H
 
@@ -79,6 +79,11 @@ typedef uint32_t FcomGID;
  * Special ID (wildcard)
  */
 #define FCOM_ID_ANY        FCOM_MAKE_ID(FCOM_GID_ANY, FCOM_SID_ANY)
+
+/*
+ * Special ID (always invalid)
+ */
+#define FCOM_ID_NONE       0
 
 /*
  * Concatenate a group ID with a 'signal' id
@@ -194,6 +199,7 @@ typedef struct FcomBlob_ {
  * E.g.,
  *
  *  FcomBlob pb;
+ *  uint32_t data[10];
  *
  *    pb.fc_vers   = FCOM_PROTO_VERSION;
  *    pb.fc_tsHi   = my_timestamp_high;
@@ -202,6 +208,7 @@ typedef struct FcomBlob_ {
  *    pb.fc_stat   = 0;
  *    pb.fc_type   = FCOM_EL_UINT32;
  *    pb.fc_nelm   = 1;
+ *    pb.fc_u32    = data;
  *    pb.fc_u32[0] = my_value;
  *
  *    fcomPutBlob( &pb );

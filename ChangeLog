@@ -1,4 +1,11 @@
-2009-09-28 (T.S.)
+2009-11-12 (T.S.)
+
+	* icd/fcom_api.h: Fixed bug in example (pointer to data area needs
+	to be set.
+
+	Added FCOM_ID_NONE definition.
+
+2009-11-12 (T.S.)
 	* src/fc_init.c: fcom_exit() must reset fcom_rsd to -1.
 
 2009-09-14 (T.S.)

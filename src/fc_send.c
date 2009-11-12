@@ -1,4 +1,4 @@
-/* $Id: fc_send.c,v 1.1.1.1 2009/07/28 17:57:05 strauman Exp $ */
+/* $Id: fc_send.c,v 1.2 2009/09/14 19:40:37 strauman Exp $ */
 
 /* 
  * Implementation of the FCOM sender's high-level parts.
@@ -35,6 +35,9 @@ fcomAllocGroup(FcomID id, FcomGroup *p_grp)
 UdpCommPkt grp;
 int        rval;
 uint32_t   *xmem;
+
+	if ( FCOM_PROTO_MAJ_GET(id) != FCOM_PROTO_VERSION_1x )
+		return FCOM_ERR_BAD_VERSION;
 
 	if ( ! (grp = udpCommAllocPacket()) ) {
 		return FCOM_ERR_NO_MEMORY;

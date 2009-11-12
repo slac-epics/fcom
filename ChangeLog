@@ -1,5 +1,9 @@
 2009-11-12 (T.S.)
 
+	* src/fc_send.c: Check ID version number in fcomAllocGroup().
+
+2009-11-12 (T.S.)
+
 	* icd/fcom_api.h: Fixed bug in example (pointer to data area needs
 	to be set.
 

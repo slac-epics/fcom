@@ -1,4 +1,4 @@
-/* $Id: fc_init.c,v 1.1.1.1 2009/07/28 17:57:07 strauman Exp $ */
+/* $Id: fc_init.c,v 1.2 2009/09/14 19:41:52 strauman Exp $ */
 
 /* FCOM Initialization.
  *
@@ -166,6 +166,7 @@ int rval;
 	}
 
 	fcom_xsd      = -1;
+	fcom_rsd      = -1;
 	fcom_port     = FCOM_PORT_DEFLT;
 	fcom_g_prefix = 0;
 

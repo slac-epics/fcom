@@ -310,7 +310,9 @@ typedef void *FcomGroup;
  * the group to which "id" belongs to.
  *
  * It is admissible to pass FCOM_ID_ANY.
- * In this case the group ID 
+ * In this case the group ID is defined
+ * by the first blob with a GID different
+ * from FCOM_GID_ANY.
  *
  * RETURNS: zero on success, nonzero on error.
  */

@@ -1,3 +1,6 @@
+  Migrated to use 'udpComm' module. Decision whether to use 
+  udpComm/lanIpBasic or udpComm/BSD is up to the application
+  developer (see README).
 Fcom-R0-1-0:
   Initial, experimental release. Only supports communication over
   'regular' TCP/IP so far but that is transparent to the user. 

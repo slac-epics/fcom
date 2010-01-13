@@ -1,3 +1,25 @@
+2010-01-13 (T.S.)
+
+	* src/prototst.c: newlib/rtems-4.10 must now #define __need_getopt_newlib
+	in order to get declarations for getopt_r().
+
+2010-01-13 (T.S.)
+
+	* src/fc_send.c, src/fc_recv.c: added (compile-time optional) code for
+	profiling/timing.
+
+2010-01-13 (T.S.)
+
+	* configure/RELEASE, src/Makefile: use new 'udpComm' module. Since
+	this has now a binary-compatible ABI we no longer have to build
+	two versions of FCOM (udpComm vs. udpCommBSD) - simply link against
+	the udpComm variant you want.
+
+2010-01-13 (T.S.)
+
+	* src/fc_recv.c: avoid type-punning of pointer by making 'pld'
+	member of 'Buf' a FcomBlob.
+
 2009-11-12 (T.S.)
 
 	* icd/fcom_api.h: Completed missing comment.

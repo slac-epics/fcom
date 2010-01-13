@@ -4,6 +4,8 @@
  * blobs and convert into an XDR stream.
  */
 
+#define __need_getopt_newlib
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

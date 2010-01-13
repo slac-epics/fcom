@@ -1,5 +1,17 @@
 2010-01-13 (T.S.)
 
+	* src/fcometst.c:
+	  o fcomPingBlob() - check return status of fcomPutBlob()
+	    and notify the user of errors.
+	  o fcomPingBlob() - added note about the inherent race condition
+	    (on slow machines).
+	  o BUGFIX: call fromInit() in all cases with a nonzero number of
+	    buffers (RX is always used!).
+	  o Added 'sleep()' after fcomSubscribe() to give the subscription
+	    process and the switch(es) some time before starting the real test.
+
+2010-01-13 (T.S.)
+
 	* src/prototst.c: newlib/rtems-4.10 must now #define __need_getopt_newlib
 	in order to get declarations for getopt_r().
 

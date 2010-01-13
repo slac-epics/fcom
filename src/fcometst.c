@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: fcometst.c,v 1.1 2010/01/13 18:31:24 strauman Exp $ */
 
 /* Echo a simple FCOM blob (for measuring protocol-overhead in a round-trip
  * situation)
@@ -61,7 +61,19 @@ uint32_t       usdel;
 	b.fc_u32    = data;
 	b.fc_u32[0] = dst2;
 
-	fcomPutBlob( &b );
+	st = fcomPutBlob( &b );
+	if ( st ) {
+		fprintf(stderr,"fcomPutBlob failed: %s\n", fcomStrerror(st));
+		return st;
+	}
+
+	/* Note the race condition: if the peer replies before we get
+	 * to block for reply then FCOM actually discards the reply!
+	 *
+	 * This can be worked around by scheduling the calling task
+	 * at a higher priority than the FCOM receiver task...
+	 */
+
 	st = fcomGetBlob( dst2, &p_b, 1000);
 	if ( st )
 		return st;
@@ -84,6 +96,8 @@ int fcom_etst_init()
 }
 
 #ifndef __rtems__
+
+#include <unistd.h>
 
 static void
 usage(const char *nm)
@@ -156,7 +170,7 @@ int      rval = 1;
 	if ( getn(argv[0], argv[optind], &d2) )
 		return 1;
 	
-	st = fcomInit("239.255.0.0", tx ? 0 : 100);
+	st = fcomInit("239.255.0.0", 100);
 
 	if ( st ) {
 		fprintf(stderr,"fcomInit() failed: %s\n", fcomStrerror(st));
@@ -171,6 +185,9 @@ int      rval = 1;
 		id = 0;
 		goto bail;
 	}
+
+	/* give the subscription some time... */
+	sleep(2);
 
 	if ( tx ) {
 		while ( l-- > 0 ) {

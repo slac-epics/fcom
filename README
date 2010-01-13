@@ -3,8 +3,9 @@
  - To let an application use FCOM
 
     o #include <fcom_api.h>
-    o link with -lfcomBSD (for FCOM over the regular TCP/IP stack)
-    o link with -lfcom    (for FCOM over the dedicated stack *** NOT IMPLEMENTED YET ***)
+	o link with -lfcom
+    o link with -ludpCommBSD (for FCOM over the regular TCP/IP stack)
+    o link with -ludpComm    (for FCOM over the dedicated stack -- RTEMS ONLY)
 
  - Programming (API) documentation is available in 'doc/fcom_icd.pdf'.
 
@@ -18,8 +19,3 @@
 
       LINUX: route add -net <fcom-mcast-prefix> netmask <mcast-prefix-netmask> dev <nic-name>
           
-
- Build Note:
-
- - the 'udpComm' module must be checked out of the *** SSRL REPOSITORY ***
-   into the 'src' subdirectory.

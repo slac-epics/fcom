@@ -1,4 +1,4 @@
-/* $Id: fc_recv.c,v 1.4 2009/08/21 06:39:57 strauman Exp $ */
+/* $Id: fc_recv.c,v 1.5 2009/09/14 19:40:37 strauman Exp $ */
 
 /* 
  * Implementation of the FCOM receiver's high-level parts.
@@ -232,7 +232,7 @@ typedef struct BufHdr {
 typedef struct Buf {
 	BufHdr     hdr;
 	uint8_t    pad[PADALGN];  /* align to FC_ALIGNMENT */
-	uint8_t    pld[];         /* payload               */
+	FcomBlob   pld;
 } Buf;
 
 /* Chunks of multiple buffers */
@@ -574,10 +574,10 @@ void          *garb;
 				/* new entry; must add a empty dummy buffer */
 				if ( ( buf = fc_getb(sizeof(FcomBlob)) ) ) {
 #ifdef PARANOIA
-					memset( buf->pld, 0, sizeof(FcomBlob) );
+					memset( &buf->pld, 0, sizeof(FcomBlob) );
 #endif
 					buf->hdr.subCnt = 0;
-					pbv1            = (FcomBlobRef)buf->pld;
+					pbv1            = &buf->pld;
 					pbv1->fc_vers   = FCOM_PROTO_VERSION;
 					pbv1->fc_idnt   = idnt;
 					pbv1->fc_type   = FCOM_EL_NONE;
@@ -742,6 +742,53 @@ void     *garb;
 	return err;
 }
 
+#if !defined(__rtems__)
+#undef ENABLE_PROFILE
+#endif
+
+#if defined(ENABLE_PROFILE)
+/* Assume difference is always less than 1s */
+static __inline__ uint32_t tsdiff(struct timespec *a, struct timespec *b)
+{
+uint32_t rval = 0;
+	if ( a->tv_nsec < b->tv_nsec )
+		rval += 1000000000L;
+	rval += a->tv_nsec - b->tv_nsec;
+	return rval;
+}
+
+/* NOTE: lanIpBasic must be built with ENABLE_PROFILE defined, too */
+extern void lanIpBscGetBufTstmp(void *b, struct timespec *ts) __attribute__((weak));
+
+#define ADDPROF(i,ts) \
+	do {              \
+		rtems_clock_get_uptime(&ts); \
+		rtems_task_ident(RTEMS_SELF, RTEMS_SEARCH_ALL_NODES, &rx_tid[i]); \
+		rx_prof[i] = tsdiff(&ts,&rx_prbs);     \
+		rx_prbs = ts;	 \
+		i++;             \
+	} while (0)
+#define PROFBAS(i,b) \
+	do {                \
+		i = 0;          \
+		if ( lanIpBscGetBufTstmp ) { \
+			lanIpBscGetBufTstmp(b, &rx_prbs); \
+		} else  {       \
+			rtems_clock_get_uptime(&rx_prbs); \
+		}               \
+	} while (0)
+
+struct timespec rx_prbs;
+rtems_id rx_tid[20] = {0};
+uint32_t rx_prof[20] = {0};
+int      rx_prdx     =  0;
+
+#else
+#define PROFBAS(i,b)  do {} while(0)
+#define ADDPROF(i,ts) do {} while(0)
+#endif
+
+
 /* Fetch data as defined by API */
 int
 fcomGetBlob(FcomID idnt, FcomBlobRef *pp_blob, uint32_t timeout_ms)
@@ -799,6 +846,8 @@ uint32_t        usec;
              */
 			rval = pthread_cond_timedwait( buf->hdr.ptr.cond, &fcl_tbl, &tout);
 
+			ADDPROF(rx_prdx, tout);
+
 			if ( rval ) {
 				rval = ETIMEDOUT == rval ? FCOM_ERR_TIMEDOUT : FCOM_ERR_SYS(-rval);
 				__FC_UNLOCK();
@@ -814,7 +863,10 @@ uint32_t        usec;
 			/* is this a placeholder that was produced
 			 * by subscription ?
 			 */
-			if ( FCOM_EL_NONE == ((FcomBlobRef)buf->pld)->fc_type ) {
+
+			ADDPROF(rx_prdx, tout);
+
+			if ( FCOM_EL_NONE == buf->pld.fc_type ) {
 				*pp_blob = 0;
 				rval     = FCOM_ERR_NO_DATA;
 			} else {
@@ -822,13 +874,15 @@ uint32_t        usec;
 				 * to user.
 				 */
 				fc_refb(buf);
-				*pp_blob = (FcomBlobRef)buf->pld;
+				*pp_blob = &buf->pld;
 				rval     = 0;
 			}
+			ADDPROF(rx_prdx, tout);
 		} else {
 			rval = FCOM_ERR_NOT_SUBSCRIBED;
 		}
 	__FC_UNLOCK();
+	ADDPROF(rx_prdx, tout);
 
 	return rval;
 }
@@ -840,7 +894,7 @@ fcomReleaseBlob(FcomBlobRef *pp_blob)
 BufRef buf;
 	/* use some magic to compute the 'buf' pointer */
 	buf = (BufRef)(      (uintptr_t)  (*pp_blob)
-                    - (  (uintptr_t)  ((BufRef)(0))->pld
+                    - (  (uintptr_t)  &((BufRef)(0))->pld
                        - (uintptr_t)   (0) ) );
 	__FC_LOCK();
 		fc_relb(buf);
@@ -975,6 +1029,10 @@ int        i,nblobs,sz,xsz;
 BufRef     buf,obuf;
 FcomID     idnt;
 
+#ifdef ENABLE_PROFILE
+struct timespec tstmp;
+#endif
+
 	nblobs = 0;
 
 	/* Block for a packet */
@@ -982,9 +1040,13 @@ FcomID     idnt;
 
 			xmemp = udpCommBufPtr(p);
 
+		PROFBAS(rx_prdx, p);
+		ADDPROF(rx_prdx, tstmp); 
+
 			/* decode message header */
 			if ( (sz = fcom_xdr_dec_msghdr(xmemp, &nblobs)) > 0 ) {
 
+		ADDPROF(rx_prdx, tstmp); 
 				fc_stats.n_msg++;
 
 				for (i=0, xmemp+=sz; i < nblobs; i++) {
@@ -993,6 +1055,7 @@ FcomID     idnt;
 
 					/* extract ID and size information up-front */
 					xsz = fcom_xdr_peek_size_id(&sz, &idnt, xmemp);
+		ADDPROF(rx_prdx, tstmp); 
 					if ( xsz < 0 ) {
 						fc_stats.bad_blb_version++;
 						goto bail;
@@ -1012,6 +1075,7 @@ FcomID     idnt;
 							buf = 0;
 						}
 					__FC_UNLOCK();
+		ADDPROF(rx_prdx, tstmp); 
 
 					if ( obuf && !buf ) {
 						/* account for failure to get a new buffer above */
@@ -1026,11 +1090,13 @@ FcomID     idnt;
 						 * Therefore it could happen that somebody unsubscribes while
 						 * we are working.
 						 */
-						if ( fcom_xdr_dec_blob( (FcomBlobRef)buf->pld, sz, xmemp) > 0 ) {
+						if ( fcom_xdr_dec_blob( &buf->pld, sz, xmemp) > 0 ) {
+		ADDPROF(rx_prdx, tstmp); 
 							__FC_LOCK();
 							/* have to check again if this ID is still subscribed */
 							obuf = buf;
 							if ( 0 == shtblRpl(bTbl, (SHTblEntry*)&obuf, SHTBL_ADD_FAIL) ) {
+		ADDPROF(rx_prdx, tstmp); 
 								/* old entry was replaced by 'buf'; 'obuf' contains
 								 * reference to old entry.
 								 *
@@ -1043,9 +1109,11 @@ FcomID     idnt;
 								obuf->hdr.ptr.cond = 0;
 								if ( buf->hdr.ptr.cond ) {
 									/* post to blocked clients */
+		ADDPROF(rx_prdx, tstmp); 
 									if ( pthread_cond_broadcast( buf->hdr.ptr.cond ) ) {
 										fc_stats.bad_cond_bcst++;
 									}
+		ADDPROF(rx_prdx, tstmp); 
 								}
 #endif
 							}
@@ -1055,6 +1123,7 @@ FcomID     idnt;
 							 * buffer we filled in vain...
 							 */
 							fc_relb(obuf);
+		ADDPROF(rx_prdx, tstmp); 
 							__FC_UNLOCK();
 						} else {
 							fc_stats.dec_errs++;
@@ -1270,7 +1339,7 @@ uintptr_t key_off,n;
 	}
 
 	/* Create hash table */
-	key_off =   (uintptr_t) &((FcomBlobRef)((BufRef)0)->pld)->fc_idnt
+	key_off =   (uintptr_t) &((BufRef)0)->pld.fc_idnt
               - (uintptr_t)  ((BufRef)0);
 
 	if ( ! ( bTbl = shtblCreate(4 * nbufs, (unsigned long)key_off) ) ) {
@@ -1287,7 +1356,7 @@ uintptr_t key_off,n;
 
 static void fc_buf_cleanup(SHTblEntry e, void *closure)
 {
-	fc_relmc(FCOM_GET_GID( ((FcomBlobRef)((BufRef)e)->pld)->fc_idnt));
+	fc_relmc(FCOM_GET_GID( ((BufRef)e)->pld.fc_idnt));
 	fc_relb(e);
 }
 

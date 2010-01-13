@@ -1,4 +1,4 @@
-/* $Id: fc_send.c,v 1.2 2009/09/14 19:40:37 strauman Exp $ */
+/* $Id: fc_send.c,v 1.3 2009/11/12 23:07:05 strauman Exp $ */
 
 /* 
  * Implementation of the FCOM sender's high-level parts.
@@ -15,6 +15,10 @@
 #include <inttypes.h>
 
 #include <netinet/in.h> /* for htonl & friends only */
+
+#ifdef ENABLE_PROFILE
+#include <sys/time.h>
+#endif
 
 static struct {
 	uint32_t n_msg;
@@ -103,21 +107,55 @@ uint32_t dip;
 	return rval;
 }
 
+#ifdef ENABLE_PROFILE
+static __inline__ uint32_t 
+tvdiff(struct timeval *pa, struct timeval *pb)
+{
+uint32_t diff=0;
+	if ( pa->tv_usec < pb->tv_usec )
+		diff += 1000000L;
+	/* assume always < 1s */
+	diff += pa->tv_usec - pb->tv_usec;
+	return diff;
+}
+
+uint32_t tx_prof[20] = {0};
+int      tx_prdx     = 0;
+#define  ADDPROF(i, a, b)              \
+	do {                               \
+		gettimeofday( &a, 0 );         \
+		tx_prof[i++] = tvdiff(&a, &b); \
+		b = a;                         \
+	} while (0)
+#else
+#define ADDPROF(i, a, b) do { } while (0)
+#endif
+
 int
 fcomPutBlob(FcomBlobRef pb)
 {
-UdpCommPkt    p;
-uint32_t      *xmem;
-int           rval;
-uint32_t      gid;
+UdpCommPkt     p;
+uint32_t       *xmem;
+int            rval;
+uint32_t       gid;
+#ifdef ENABLE_PROFILE
+struct timeval ta, tb;
+#endif
 
 
 	if ( FCOM_PROTO_MAJ_GET(pb->fc_vers) != FCOM_PROTO_VERSION_1x )
 		return FCOM_ERR_BAD_VERSION;
 
+#ifdef ENABLE_PROFILE
+	gettimeofday( &tb, 0 );
+	tx_prdx = 0;
+#endif
+
 	if ( ! (p = udpCommAllocPacket()) ) {
 		return FCOM_ERR_NO_MEMORY;
 	}
+
+	ADDPROF(tx_prdx, ta, tb);
 
 	xmem = udpCommBufPtr(p);
 
@@ -126,12 +164,16 @@ uint32_t      gid;
 		return rval;
 	}
 
+	ADDPROF(tx_prdx, ta, tb);
+
 	if ( ! FCOM_GID_VALID( gid ) ) {
 		udpCommFreePacket(p);
 		return FCOM_ERR_INVALID_ID;
 	}
 
 	rval = sendtogid(p, rval * sizeof(uint32_t), gid);
+
+	ADDPROF(tx_prdx, ta, tb);
 
 	if ( 0 == rval )
 		fc_stats.n_blb++;

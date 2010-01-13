@@ -53,3 +53,4 @@ BASE_MODULE_VERSION=base-R3-14-10
 
 EPICS_BASE=$(EPICS_SITE_TOP)/base/$(BASE_MODULE_VERSION)
 # =================================================================
+UDPCOMM=$(EPICS_MODULES)/udpComm

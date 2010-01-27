@@ -1,5 +1,15 @@
 2010-01-27 (T.S.)
 
+	* src/Makefile, src/fcom_iocsh.c, src/fcomIocshSupport.dbd: 
+	The latter two are new files used to implement a library
+	'libfcomIocshSupport' that registers (so far)
+	 o fcomInit()
+	 o fcomDumpStats()
+	 o fcomStrerror()
+	with iocsh().
+
+2010-01-27 (T.S.)
+
 	* src/fc_send.c: BUGFIX: check for version number embedded in
 	ID (fcomAllocGroup()) used the wrong macros (letting fcomAllocGroup()
 	fail).

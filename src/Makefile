@@ -21,12 +21,14 @@ fcomxtst_SRCS = fcomxtst.c
 fcomxtst_LIBS = fcom udpCommBSD
 
 fcometst_SRCS = fcometst.c
-fcometst_LIBS_DEFAULT = fcom udpCommBSD
-fcometst_LIBS_RTEMS   = fcom udpComm
+fcometst_LIBS = fcom
+fcometst_LIBS_DEFAULT = udpCommBSD
+fcometst_LIBS_RTEMS   = udpComm
 
 prototst_SRCS_DEFAULT += prototst.c fcom_proto_xdr.c
-prototst_LIBS_DEFAULT = fcom udpCommBSD
-fcometst_LIBS_RTEMS   = fcom udpComm
+prototst_LIBS         = fcom
+prototst_LIBS_DEFAULT = udpCommBSD
+prototst_LIBS_RTEMS   = udpComm
 
 # Compile and add the code to the support library
 fcom_SRCS += fc_init.c fc_strerror.c
@@ -39,6 +41,10 @@ USR_CPPFLAGS=  -DUSE_PTHREADS -DSUPPORT_SYNCGET
 # note that for profiling fc_recv.c lanIpBasic must also
 # be built with profiling enabled
 #USR_CPPFLAGS+= -DENABLE_PROFILE
+
+DBD                     += fcomIocshSupport.dbd
+LIBRARY_IOC             += fcomIocshSupport
+fcomIocshSupport_SRCS   += fcom_iocsh.c
 
 #=============================
 

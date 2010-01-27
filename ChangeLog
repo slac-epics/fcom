@@ -1,3 +1,9 @@
+2010-01-27 (T.S.)
+
+	* src/fc_send.c: BUGFIX: check for version number embedded in
+	ID (fcomAllocGroup()) used the wrong macros (letting fcomAllocGroup()
+	fail).
+
 2010-01-13 (T.S.)
 
 	* src/fcometst.c:

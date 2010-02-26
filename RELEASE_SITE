@@ -1,3 +1,7 @@
+#RELEASE Location of external products
+# Run "gnumake clean uninstall install" in the application
+# top directory each time this file is changed.
+
 # =============================================================
 # Define the top of the EPICS tree for your site.
 # We will build some tools/scripts that allow us to

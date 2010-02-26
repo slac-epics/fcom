@@ -46,6 +46,11 @@ DBD                     += fcomIocshSupport.dbd
 LIBRARY_IOC             += fcomIocshSupport
 fcomIocshSupport_SRCS   += fcom_iocsh.c
 
+# Hack: OP_SYS_LDLIBS on RTEMS still contains rtemsCom - get rid of it...
+ifeq ($(OS_CLASS),RTEMS)
+OP_SYS_LDLIBS=
+endif
+
 #=============================
 
 include $(TOP)/configure/RULES

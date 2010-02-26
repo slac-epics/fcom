@@ -27,9 +27,9 @@ TEMPLATE_TOP=$(EPICS_BASE)/templates/makeBaseApp/top
 # Define location of module tree with respect to
 # EPICS_SITE_TOP
 # =============================================================
-#EPICS_MODULES=$(EPICS_SITE_TOP)/modules
+EPICS_MODULES=$(EPICS_SITE_TOP)/modules
 #EPICS_MODULES=/afs/slac.stanford.edu/g/lcls/vol8/epics/fastFBCK/modules
-EPICS_MODULES=/afs/slac.stanford.edu/g/lcls/vol8/epics/fastFBCK/modules
+#EPICS_MODULES=/afs/slac.stanford.edu/g/lcls/vol8/epics/fastFBCK/modules
 
 
 # ==============================================================
@@ -46,15 +46,19 @@ BASE_MODULE_VERSION=base-R3-14-8-2-lcls5
 # the appropriate version dependencies
 # http://www-group.slac.stanford.edu/cdsoft/epics/swModules3.htm
 # ===============================================================
+UDPCOMM_MODULE_VERSION=udpComm-R1-0-0
+
+# ============================================================
+# External Support
+# ============================================================
+UDPCOMM=$(EPICS_MODULES)/udpComm/$(UDPCOMM_MODULE_VERSION)
 
 
 # =================================================================
 # Define EPICS_BASE
 # EPICS_BASE usually appears last so other apps can override stuff:
 # =================================================================
-# EPICS_BASE usually appears last so other apps can override stuff:
-# EPICS_BASE=/afs/slac/g/lcls/epics/base/base-R3-14-10
 
 EPICS_BASE=$(EPICS_SITE_TOP)/base/$(BASE_MODULE_VERSION)
 # =================================================================
-UDPCOMM=$(EPICS_MODULES)/udpComm/Head
+

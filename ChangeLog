@@ -1,3 +1,14 @@
+2010-03-18 (T.S.)
+
+	* src/mainwrap.h, src/prototst.c, src/fcomrtst.c: separated
+	wrapper around 'main' for RTEMS into separate header that
+	can be used by different utilites.
+
+	* src/fcomrtst.c: added more command line options/features.
+
+	* src/fcomitst.c, src/Makefile: added 'fcomitst' test program
+	for interactive operation.
+
 2010-03-17 (T.S.)
 
 	* src/xdr_enc.c:

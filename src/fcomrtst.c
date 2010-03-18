@@ -1,4 +1,4 @@
-/* $Id: fcomrtst.c,v 1.2 2009/07/28 19:46:56 strauman Exp $ */
+/* $Id: fcomrtst.c,v 1.3 2009/07/28 22:59:38 strauman Exp $ */
 
 /* Test program for FCOM receiver
  *
@@ -21,6 +21,8 @@
 #include <stdio.h>
 #include <inttypes.h>
 #include <stdlib.h>
+#include <string.h>
+#include <sys/errno.h>
 #include <time.h>
 
 #include <fcom_api.h>
@@ -49,10 +51,38 @@ int         got;
 #else
 struct timespec touts;
 #endif
-int         have_sync;
+int         have_sync = FCOM_SYNC_GET;
+char        *pref = "239.255.0.0:0";
+FILE        *nif  = 0;
+FILE        *nof  = 0;
 
-	while ( (i=getopt(argc, argv, "t:")) > 0 ) {
+	while ( (i=getopt(argc, argv, "at:p:i:o:")) > 0 ) {
 		switch (i) {
+			case 'a':
+				/* disable synchronous gets */
+				have_sync = FCOM_ASYNC_GET;
+			break;
+
+			case 'p':
+				pref = optarg;
+			break;
+
+			case 'i':
+				if ( !(nif = fopen(optarg,"r")) ) {
+					fprintf(stderr,"Unable to open infile: %s\n", strerror(errno));
+					goto bail;
+				}
+				infile = nif;
+			break;
+				
+			case 'o':
+				if ( !(nof = fopen(optarg,"w")) ) {
+					fprintf(stderr,"Unable to open outfile: %s\n", strerror(errno));
+					goto bail;
+				}
+				outfile = nof;
+			break;
+				
 			case 't':
 				if ( 1 != sscanf(optarg,"%u",&tout) ) {
 					fprintf(stderr,"Number expected as '-t' argument\n");
@@ -62,31 +92,32 @@ int         have_sync;
 
 			case 'h':
 			default:
-				fprintf(stderr,"Usage: %s [-t<timeout]\n", argv[0]);
+				fprintf(stderr,"Usage: %s [-t <timeout>] [-p <fcom_mcprefix>] [-i <infile>] [-o <outfile>] [-a]\n", argv[0]);
 			return 'h' == i ? 0 : 1;
 		}
 	}
 
-	if ( (st = fcomInit("239.255.0.0", 100)) ) {
+	if ( (st = fcomInit(pref, 100)) ) {
 		fprintf(stderr, "fcomInit() failed: %s\n", fcomStrerror(st));
 		goto bail;
 	}
 
 	/* Check whether we have synchronous operations */
-	have_sync = FCOM_SYNC_GET;
-	fprintf(stderr,"Checking for synchronous gets:");
-	st = fcomSubscribe(FCOM_MAKE_ID(FCOM_GID_MIN, FCOM_SID_MIN), have_sync);
-	if ( !st ) {
-		fprintf(stderr,"OK\n");
-		st = fcomUnsubscribe(FCOM_MAKE_ID(FCOM_GID_MIN, FCOM_SID_MIN));
-	} else if ( FCOM_ERR_UNSUPP == st ) {
-		fprintf(stderr,"NO -- not using\n");
-		have_sync = FCOM_ASYNC_GET;
-		st = 0;
-	} 
-	if ( st ) {
-		fprintf(stderr,"ERROR: %s\n", fcomStrerror(st));
-		goto bail;
+	if ( FCOM_SYNC_GET == have_sync ) {
+		fprintf(stderr,"Checking for synchronous gets:");
+		st = fcomSubscribe(FCOM_MAKE_ID(FCOM_GID_MIN, FCOM_SID_MIN), have_sync);
+		if ( !st ) {
+			fprintf(stderr,"OK\n");
+			st = fcomUnsubscribe(FCOM_MAKE_ID(FCOM_GID_MIN, FCOM_SID_MIN));
+		} else if ( FCOM_ERR_UNSUPP == st ) {
+			fprintf(stderr,"NO -- not using\n");
+			have_sync = FCOM_ASYNC_GET;
+			st = 0;
+		} 
+		if ( st ) {
+			fprintf(stderr,"ERROR: %s\n", fcomStrerror(st));
+			goto bail;
+		}
 	}
 
     /* subscribe all IDs found in the input file */
@@ -158,5 +189,9 @@ bail:
 		fcom_recv_stats(stderr);
 	fcom_exit();
 	free(pb);
+	if ( nif )
+		fclose(nif);
+	if ( nof )
+		fclose(nof);
 	return rval;
 }

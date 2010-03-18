@@ -1,4 +1,4 @@
-/* $Id: xdr_enc.c,v 1.1.1.1 2009/07/28 17:57:07 strauman Exp $ */
+/* $Id: xdr_enc.c,v 1.2 2009/07/28 19:46:56 strauman Exp $ */
 
 /* FCOM XDR encoder
  *
@@ -20,14 +20,16 @@ fcom_xdr_enc_blob(uint32_t *xdr, FcomBlobRef pb, int avail, uint32_t *p_gid)
 register int sz = 0, i;
 uint32_t     *xdro = xdr;
 
-	if ( (avail -= sizeof(pb->fc_vers)) < 0 )
-		return FCOM_ERR_NO_SPACE;
-
+#if 0 /* Disable for now */
 #ifdef __PPC__
 	/* zero a cache-line to speed up things */
-	if ( (((uintptr_t)xdr) & 31) == 0 )
-		__dcbz(pb);
+	if ( (((uintptr_t)xdr) & 31) == 0 && avail > 31 )
+		__dcbz(xdr);
 #endif
+#endif
+
+	if ( (avail -= sizeof(pb->fc_vers)) < 0 )
+		return FCOM_ERR_NO_SPACE;
 
 	*xdr++ = SWAPU32(pb->fc_vers);
 

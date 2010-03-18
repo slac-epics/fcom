@@ -1,4 +1,4 @@
-/* $Id: xdr_dec.c,v 1.3 2009/07/28 22:19:43 strauman Exp $ */
+/* $Id: xdr_dec.c,v 1.4 2009/07/28 23:00:56 strauman Exp $ */
 
 /* FCOM XDR decoder
  *
@@ -74,14 +74,16 @@ register int i;
 #endif
 uint32_t     *xdro = xdr;
 
-	if ( (avail -= sizeof(pb->fc_vers)) < 0 )
-		return FCOM_ERR_NO_SPACE;
-
+#if 0 /* Disable for now */
 #ifdef __PPC__
 	/* zero a cache-line to speed up things */
-	if ( (((uintptr_t)pb) & 31) == 0 )
+	if ( (((uintptr_t)pb) & 31) == 0 && avail > 31 )
 		__dcbz(pb);
 #endif
+#endif
+
+	if ( (avail -= sizeof(pb->fc_vers)) < 0 )
+		return FCOM_ERR_NO_SPACE;
 
 	pb->fc_vers = SWAPU32( *xdr++ );
 

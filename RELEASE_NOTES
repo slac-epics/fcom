@@ -1,3 +1,7 @@
+fcom-R1-0-0:  
+  IMPORTANT BUGFIX RELEASE (affecting only sender):
+  Sending data might result in memory corruption.
+
 fcom-R0-1-1:  Built against rtems 4.9.3 and EPICS BASE:
               base-R3-14-8-2-lcls5
               Here we are just tagging a prodcution release

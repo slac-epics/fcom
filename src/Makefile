@@ -10,8 +10,12 @@ include $(TOP)/configure/CONFIG
 LIBRARY_IOC       += fcom
 PROD_Linux  += fcomrtst
 PROD_Linux  += fcomxtst
+PROD_Linux  += fcomitst
 PROD_IOC    += prototst
 PROD_IOC    += fcometst
+
+fcomitst_SRCS = fcomitst.c
+fcomitst_LIBS = fcom udpCommBSD
 
 
 fcomrtst_SRCS = fcomrtst.c

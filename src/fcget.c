@@ -1,8 +1,11 @@
-/*$Id$*/
+/*$Id: fcget.c,v 1.1 2010/03/19 19:31:19 strauman Exp $*/
 
 /* Get FCOM Blob and dump to stdout */
 
 #include <fcom_api.h>
+#include <udpComm.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 #include <getopt.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -10,10 +13,13 @@
 #include <inttypes.h>
 #include <time.h>
 
+#include <fcomP.h> /* for fcom_silent_mode which is not really public */
+
+
 static void
 usage(char *nm)
 {
-	fprintf(stderr,"Usage: %s [-ahv] [-t <timeout_ms>] [-p <fcom_mc_prefix>] blob_id\n", nm);
+	fprintf(stderr,"Usage: %s [-ahv] [-t <timeout_ms>] [-p <fcom_mc_prefix>] [-i <fcom_mc_IF>] blob_id\n", nm);
 	fprintf(stderr,"  Options:\n");
 	fprintf(stderr,"       -h print this message\n");
 	fprintf(stderr,"       -a enforce asynchronous 'get'\n");
@@ -21,9 +27,11 @@ usage(char *nm)
 	fprintf(stderr,"          after subscription until attempting async get).\n");
 	fprintf(stderr,"          Defaults to 1000.\n");
 	fprintf(stderr,"       -p <fcom_mc_prefix>. Multicast prefix for FCOM\n");
+	fprintf(stderr,"       -i <fcom_mc_IF>. IF (dot-address) on which to listen for FCOM\n");
 	fprintf(stderr,"       -v verbose mode.\n");
 	fprintf(stderr,"  Environment:\n");
 	fprintf(stderr,"       FCOM_MC_PREFIX defines multicast prefix (overridden by -p)\n");
+	fprintf(stderr,"       FCOM_MC_IFADDR defines address of IF to be listened on\n");
 }
 
 int
@@ -37,9 +45,11 @@ uint64_t llid;
 uint32_t idnt;
 int      st;
 char     *prefix = 0;
+char     *mcifad = 0;
 struct timespec tout;
 FcomBlobRef     blob;
 int      level   = 0;
+uint32_t ifaddr;
 
 
 	while ( (ch = getopt(argc, argv, "vht:ap:")) >= 0 ) {
@@ -66,6 +76,10 @@ int      level   = 0;
 				prefix = optarg;
 			break;
 
+			case 'i':
+				mcifad = optarg;
+			break;
+
 			case 'v':
 				level = 1;
 			break;
@@ -77,6 +91,13 @@ int      level   = 0;
 		return 1;
 	}
 
+	if ( !mcifad ) {
+		mcifad = getenv("FCOM_MC_IFADDR");
+		/* Don't complain if NULL - OK if routing tables are used
+		 * or only a single NIC present.
+		 */
+	}
+
 	if ( optind >= argc || 1 != sscanf(argv[optind],"%"SCNi64,&llid) ) {
 		fprintf(stderr,"Missing or non-numeric FCOM blob ID\n");
 		usage(argv[0]);
@@ -84,6 +105,15 @@ int      level   = 0;
 	}
 	idnt = (uint32_t)llid;
 
+	if ( mcifad ) {
+		if ( INADDR_NONE == (ifaddr = inet_addr(mcifad)) ) {
+			fprintf(stderr,"Invalid IP address: %s\n", mcifad);
+			return 1;
+		}
+		udpCommSetIfMcastInp(ifaddr);
+	}
+
+	fcom_silent_mode = 1;
 	st = fcomInit( prefix, 10 );
 
 	if ( st ) {

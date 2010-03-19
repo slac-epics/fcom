@@ -1,4 +1,4 @@
-/* $Id: fc_recv.c,v 1.6 2010/01/13 18:29:02 strauman Exp $ */
+/* $Id: fc_recv.c,v 1.7 2010/03/19 19:28:14 strauman Exp $ */
 
 /* 
  * Implementation of the FCOM receiver's high-level parts.
@@ -98,7 +98,9 @@ pthread_mutexattr_t a;
 	}
 #else
 #warning "PTHREAD_PRIO_INHERIT not defined -- mutex priority inheritance not supported on this system"
-	fprintf(stderr,"PTHREAD_PRIO_INHERIT not available on this sytem; using mutex WITHOUT priority inheritance.\n");
+	if ( ! fcom_silent_mode ) {
+		fprintf(stderr,"PTHREAD_PRIO_INHERIT not available on this sytem; using mutex WITHOUT priority inheritance.\n");
+	}
 #endif
 	pthread_mutex_init( p_l, &a );
 	pthread_mutexattr_destroy( &a );
@@ -1342,8 +1344,10 @@ struct sched_param pri;
 		 * a warning and try without...
 		 */
 		if ( EPERM == err ) {
-			fprintf(stderr,"Warning (FCOM): NOT using real-time scheduler \n");
-			fprintf(stderr,"                due to lack of privilege (EPERM)\n");
+			if ( ! fcom_silent_mode ) {
+				fprintf(stderr,"Warning (FCOM): NOT using real-time scheduler \n");
+				fprintf(stderr,"                due to lack of privilege (EPERM)\n");
+			}
 			if ( (err = pthread_attr_setinheritsched(&atts, PTHREAD_INHERIT_SCHED)) ) {
 				msg="pthread_attr_setinheritsched";
 				goto bail;

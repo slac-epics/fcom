@@ -1,4 +1,4 @@
-/* $Id: fcomP.h,v 1.1.1.1 2009/07/28 17:57:06 strauman Exp $ */
+/* $Id: fcomP.h,v 1.2 2009/07/28 19:46:55 strauman Exp $ */
 #ifndef FCOM_PRIVATE_API_H
 #define FCOM_PRIVATE_API_H
 
@@ -48,6 +48,9 @@ extern int      fcom_rx_priority_percent;
 /* Clean up and terminate FCOM (undocumented; for testing only) */
 int
 fcom_exit(void);
+
+/* Suppress certain warnings */
+extern int fcom_silent_mode;
 
 static __inline__
 int fcom_get_gid(FcomBlobRef pb, uint32_t *p_gid)

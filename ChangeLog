@@ -1,5 +1,18 @@
 2010-03-19 (T.S.)
 
+	* src/fc_init.c, src/fc_recv.c, src/fcomP.h:
+	Added 'fcom_silent_mode' to suppress warnings about non-RT scheduler
+	and mutex priority inheritance not being available.
+	Certain (diagnostic) applications don't care.
+	However, this is not a public feature for now.
+
+2010-03-19 (T.S.)
+
+	* src/fcget.c: Added '-i' swith / FCOM_MC_IFADDR env-var to
+	define interface where we should listen for FCOM
+
+2010-03-19 (T.S.)
+
 	* src/fcometst.c, src/prototst.c, src/mainwrap.h: Moved
 	wrapper code (convert vararg list of strings to proper array
 	that can be passed to a 'main'-style routine) to 'mainwrap.h'

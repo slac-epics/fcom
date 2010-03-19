@@ -1,4 +1,4 @@
-/* $Id: fc_init.c,v 1.2 2009/09/14 19:41:52 strauman Exp $ */
+/* $Id: fc_init.c,v 1.3 2009/11/12 22:50:54 strauman Exp $ */
 
 /* FCOM Initialization.
  *
@@ -36,6 +36,8 @@ int      fcom_rsd      = -1;
 /* Tunable parameters */
 int      fcom_port     = FCOM_PORT_DEFLT;
 int      fcom_rx_priority_percent = 80;
+
+int      fcom_silent_mode = 0;
 
 static uint32_t m[] = {
 	0xffff0000,

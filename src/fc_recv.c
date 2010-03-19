@@ -1,4 +1,4 @@
-/* $Id: fc_recv.c,v 1.5 2009/09/14 19:40:37 strauman Exp $ */
+/* $Id: fc_recv.c,v 1.6 2010/01/13 18:29:02 strauman Exp $ */
 
 /* 
  * Implementation of the FCOM receiver's high-level parts.
@@ -221,6 +221,7 @@ typedef struct BufHdr {
 	uint16_t       size;           /* size of this buffer               */
 	uint8_t        type;           /* type of this buffer               */
 	uint8_t        flags;          /* currently unused                  */
+	uint32_t       updCnt;         /* statistics; # of received blobs   */
 } BufHdr, *BufHdrRef;
 
 /* A buffer consists of a 'header' and 'payload'-data
@@ -904,6 +905,105 @@ BufRef buf;
 	return 0;
 }
 
+static const char *t2s(uint8_t t)
+{
+	switch ( FCOM_EL_TYPE(t) ) {
+		case FCOM_EL_FLOAT:  return "flt";
+		case FCOM_EL_DOUBLE: return "dbl";
+		case FCOM_EL_UINT32: return "u32";
+		case FCOM_EL_INT32:  return "i32";
+		case FCOM_EL_INT8:   return "i08";
+		default:
+		break;
+	}
+	return "***";
+}
+
+int
+fcomDumpIDStats(FcomID idnt, int level, FILE *f)
+{
+BufRef buf;
+int    i;
+int    rval = 0;
+
+	if ( ! f )
+		f = stdout;
+
+	__FC_LOCK();
+
+	if ( (buf = shtblFind( bTbl, idnt )) ) {
+		fc_refb(buf);
+	} 
+
+	__FC_UNLOCK();
+
+	if ( ! buf ) {
+		return fprintf(f,"fcomDumpIDStats: %s\n", fcomStrerror(FCOM_ERR_NOT_SUBSCRIBED));
+	}
+
+	rval += fprintf(f,"Statistics for FCOM ID 0x%08"PRIx32":\n", idnt);
+	rval += fprintf(f,"  Subscriptions :       %4u\n",           buf->hdr.subCnt);
+	rval += fprintf(f,"  Buffer updates:       %4"PRIu32"\n",    buf->hdr.updCnt);
+	if ( level > 0 ) {
+		rval += fprintf(f,"  Buffer size   :       %4u\n",           buf->hdr.size);
+		rval += fprintf(f,"  Buffer refcnt :       %4u\n",           buf->hdr.refCnt);
+	}
+
+	if ( FCOM_EL_NONE == buf->pld.fc_type ) {
+		rval += fprintf(f,"  Blob payload  : ***NO DATA RECEIVED***\n");
+	} else {
+		if ( level > 0 ) {
+			rval += fprintf(f,"  Proto version :       0x%02x\n",        buf->pld.fc_vers);
+		}
+		rval += fprintf(f,"  Blob status   : 0x%08"PRIx32"\n",       buf->pld.fc_stat);
+		rval += fprintf(f,"  Blob timestmpH: 0x%08"PRIx32"\n",       buf->pld.fc_tsHi);
+		rval += fprintf(f,"  Blob timestmpL: 0x%08"PRIx32"\n",       buf->pld.fc_tsLo);
+		rval += fprintf(f,"  Blob payload  :   %s[%3u]\n", t2s(buf->pld.fc_type), buf->pld.fc_nelm);
+		if ( level > 0 ) {
+			for ( i=0; i<buf->pld.fc_nelm; i++ ) {
+				switch ( FCOM_EL_TYPE(buf->pld.fc_type) ) {
+					default:             i = buf->pld.fc_nelm;
+					break;
+
+					case FCOM_EL_FLOAT:  rval += fprintf(f,"    %.4e\n",
+												           buf->pld.fc_flt[i]
+					                                    );
+					break;
+
+					case FCOM_EL_DOUBLE: rval += fprintf(f,"    %.6e\n",
+												           buf->pld.fc_dbl[i]
+					                                    );
+					break;
+
+					case FCOM_EL_UINT32: rval += fprintf(f,"    0x%08"PRIx32"(%9"PRIu32")\n",
+												           buf->pld.fc_u32[i],
+												           buf->pld.fc_u32[i]
+												        );
+					break;
+
+					case FCOM_EL_INT32:  rval += fprintf(f,"    0x%08"PRIx32"(%10"PRIi32")\n",
+												           buf->pld.fc_i32[i],
+												           buf->pld.fc_i32[i]
+												        );
+					break;
+
+					case FCOM_EL_INT8:   rval += fprintf(f,"    0x%02"PRIx8"(%4"PRIi8")\n",
+												           (uint8_t)buf->pld.fc_i08[i],
+												           buf->pld.fc_i08[i]
+											            );
+					break;
+				}
+			}
+		}
+	}
+
+	__FC_LOCK();
+		fc_relb(buf);
+	__FC_UNLOCK();
+
+	return rval;
+}
+
 volatile int fcom_recv_running = 1;
 
 void
@@ -1100,9 +1200,11 @@ struct timespec tstmp;
 								/* old entry was replaced by 'buf'; 'obuf' contains
 								 * reference to old entry.
 								 *
-								 * Copy the subscription count and cond-var
+								 * Increment statistics counter and copy
+								 * the subscription count and cond-var
                                  * into the new buffer.
 								 */
+								buf->hdr.updCnt    = obuf->hdr.updCnt + 1;
 								buf->hdr.subCnt    = obuf->hdr.subCnt;
 #if defined(SUPPORT_SYNCGET)
 								buf->hdr.ptr.cond  = obuf->hdr.ptr.cond;

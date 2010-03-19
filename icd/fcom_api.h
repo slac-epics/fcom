@@ -1,4 +1,4 @@
-/* $Id: fcom_api.h,v 1.4 2009/07/28 19:46:55 strauman Exp $ */
+/* $Id: fcom_api.h,v 1.6 2009/11/12 23:11:32 strauman Exp $ */
 #ifndef FCOM_API_HEADER_H
 #define FCOM_API_HEADER_H
 
@@ -563,6 +563,17 @@ fcomGetStats(int n_keys, uint32_t key_arr[], uint64_t value_arr[]);
 #define FCOM_STAT_TX_NUM_MESGS_SENT       FCOM_TX_32_STAT(2)
 /* Number of failed attempts to send (TCP/IP stack errors) */
 #define FCOM_STAT_TX_ERR_SEND             FCOM_TX_32_STAT(3)
+
+/* Dump statistics and contents of a given ID to 'f'
+ * (stdout if NULL).
+ *
+ * If 'level' is nonzero then more verbose information is
+ * printed (including payload data).
+ *
+ * RETURNS: Number of characters printed.
+ */
+int
+fcomDumpIDStats(FcomID idnt, int level, FILE *f);
 
 
 /** EXAMPLES *********************************************************/

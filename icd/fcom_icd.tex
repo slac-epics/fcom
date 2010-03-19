@@ -53,6 +53,8 @@ and other applications.%
 \addchangehistory{002}{July 9, 2009}{All}{Added synchronous reception, error processing,
                                           statistics, initialization. Removed FCOM specific 
                                           bits from a blob's status word.}
+\addchangehistory{003}{March 19, 2010}{All}{Added fcomDumpIDStats() diagnostic
+                                            entry point.}
 
 \currentrevision{2}
 
@@ -741,7 +743,7 @@ synchronization feature%
             {\tt fcomPutGroup()} -- regardless of the status
             returned by the latter.}
     \subsubsection{Statistics}
-      Two entry points for obtaining statistics information are
+      The following entry points for obtaining statistics information are
       provided:
       \begin{verbatim}
   void fcomDumpStats(FILE *f);
@@ -794,6 +796,20 @@ synchronization feature%
       twice. However, it is possible that the two returned values
       differ since a new \blob{} might have arrived/been processed
       between reading the counter twice.
+
+      \begin{verbatim}
+  int fcomDumpIDStats( FcomID idnt, int level, FILE *f);
+      \end{verbatim}
+
+	  prints statistics and contents of a cached \blob{} with
+      ID 'idnt' to a FILE. The FILE handle may be NULL in
+      which case stdout is used. 
+
+	  If 'level' is nonzero then more verbose information
+      is dumped including the payload data.
+
+	  This routine is a useful diagnostic to check if data are received
+      at all and if they update etc.
 
     \subsubsection{Initialization}
       Before utilizing \fcom{} an application must initialize

@@ -1,10 +1,15 @@
-/* $Id: fcometst.c,v 1.1 2010/01/13 18:31:24 strauman Exp $ */
+/* $Id: fcometst.c,v 1.2 2010/01/13 20:45:51 strauman Exp $ */
 
 /* Echo a simple FCOM blob (for measuring protocol-overhead in a round-trip
  * situation)
  */
 
+#define MAIN_NAME fcometst
+#include "mainwrap.h"
+
 #include <inttypes.h>
+#include <getopt.h>
+#include <unistd.h>
 
 #include <fcom_api.h>
 #include <fcomP.h>
@@ -95,9 +100,6 @@ int fcom_etst_init()
 	return fcomInit("239.255.0.0",100);
 }
 
-#ifndef __rtems__
-
-#include <unistd.h>
 
 static void
 usage(const char *nm)
@@ -127,6 +129,7 @@ int      st;
 uint32_t maxp = 0;
 uint32_t nelm = 10;
 int      rval = 1;
+GETOPTSTAT_DECL;
 
 	while ( (ch = getopt(argc, argv, "hx:t:l:n:")) > 0 ) {
 		switch ( ch ) {
@@ -220,4 +223,3 @@ bail:
 
 	return rval;
 }
-#endif

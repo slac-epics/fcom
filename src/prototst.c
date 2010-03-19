@@ -4,7 +4,8 @@
  * blobs and convert into an XDR stream.
  */
 
-#define __need_getopt_newlib
+#define MAIN_NAME prototst
+#include "mainwrap.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -117,12 +118,6 @@ union {
 	return a;
 }
 
-#ifdef __rtems__
-#include "mainwrap.h"
-mainwrap(prototst)
-#define main prototst_main
-#endif
-
 int main(int argc, char **argv)
 {
 FcomBlobRef   pb[NBLOBS] = {0};
@@ -134,16 +129,7 @@ FcomMsg_XDR_  mx;
 int           i,err,rval=1,nblobs;
 FILE          *infile, *outfile;
 char          *ifn = 0, *ofn = 0;
-#ifdef __rtems__
-getopt_data   god = {0};
-#define getopt(a,v,s) getopt_r(a,v,s,&god)
-#undef optind
-#define optind god.optind
-#undef optarg
-#define optarg god.optarg
-#undef opterr
-#define opterr god.opterr
-#endif
+GETOPTSTAT_DECL;
 
 	infile  = stdin;
 	outfile = stdout;

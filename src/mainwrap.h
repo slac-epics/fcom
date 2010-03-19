@@ -1,5 +1,8 @@
+#ifdef __rtems__
 #include <stdarg.h>
-#define mainwrap(nm) \
+
+#define __mainwrapwrap(x) __mainwrap(x)
+#define __mainwrap(nm) \
                      \
 extern int nm##_main(int, char**); \
                      \
@@ -22,3 +25,28 @@ va_list ap;          \
                      \
 	return nm##_main(argc, argv);\
 }
+
+#define __maincatcat(x)   __maincat(x)
+#define __maincat(x)      x##_main
+
+#define main __maincatcat(MAIN_NAME)
+__mainwrapwrap(MAIN_NAME)
+
+#define __need_getopt_newlib
+#include <getopt.h>
+#include <unistd.h>
+
+#define GETOPTSTAT_DECL getopt_data god = {0}
+#define getopt(a,v,s)   getopt_r(a,v,s,&god)
+#undef  optind
+#define optind          god.optind
+#undef  optarg
+#define optarg          god.optarg
+#undef  opterr
+#define opterr          god.opterr
+#else
+#define main main
+#define GETOPTSTAT_DECL
+#include <getopt.h>
+#include <unistd.h>
+#endif

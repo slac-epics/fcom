@@ -1,3 +1,21 @@
+2010-03-19 (T.S.)
+
+	* src/fcometst.c, src/prototst.c, src/mainwrap.h: Moved
+	wrapper code (convert vararg list of strings to proper array
+	that can be passed to a 'main'-style routine) to 'mainwrap.h'
+	to be used by multiple test programs.
+
+2010-03-19 (T.S.)
+
+	* src/Makefile, src/fcget.c: New host diagnostic/test
+	program for reading data from FCOM.
+
+2010-03-19 (T.S.)
+
+	* src/fc_recv.c, icd/fcom_icd.tex, icd/fcom_api.h: Added
+	'fcomDumpIDStats()' diagnostic routine and documented in
+	the ICD.
+
 2010-03-18 (T.S.)
 
 	* src/mainwrap.h, src/prototst.c, src/fcomrtst.c: separated

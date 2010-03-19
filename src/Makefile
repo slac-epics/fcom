@@ -11,12 +11,15 @@ LIBRARY_IOC       += fcom
 PROD_Linux  += fcomrtst
 PROD_Linux  += fcomxtst
 PROD_Linux  += fcomitst
+PROD_Linux  += fcget
 PROD_IOC    += prototst
 PROD_IOC    += fcometst
 
+fcget_SRCS = fcget.c
+fcget_LIBS = fcom udpCommBSD
+
 fcomitst_SRCS = fcomitst.c
 fcomitst_LIBS = fcom udpCommBSD
-
 
 fcomrtst_SRCS = fcomrtst.c
 fcomrtst_LIBS = fcom udpCommBSD

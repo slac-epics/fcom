@@ -1,3 +1,10 @@
+fcom-R1-1-0:
+  Added 'fcomDumpIDStats()' which could be a useful diagnostic.
+  A linux-host application 'fcget' was added which makes use
+  of fcomDumpIDStats on linux (can get + dump individual blobs
+  from linux).
+  On RTEMS, fcomDumpIDStats() can be used directly. The new
+  routine is documented in the fcom_api.h header and the ICD.
 fcom-R1-0-0:  
   IMPORTANT BUGFIX RELEASE (affecting only sender):
   Sending data might result in memory corruption.

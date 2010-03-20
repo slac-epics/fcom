@@ -37,7 +37,7 @@ EPICS_MODULES=$(EPICS_SITE_TOP)/modules
 # =============================================================
 #BASE_MODULE_VERSION=base-R3-14-10
 #BASE_MODULE_VERSION=base-R3-14-8-2-lcls5
-BASE_MODULE_VERSION=base-R3-14-8-2-lcls5
+BASE_MODULE_VERSION=base-R3-14-8-2-lcls6
 
 # ===============================================================
 # Define the version of modules needed by
@@ -46,7 +46,7 @@ BASE_MODULE_VERSION=base-R3-14-8-2-lcls5
 # the appropriate version dependencies
 # http://www-group.slac.stanford.edu/cdsoft/epics/swModules3.htm
 # ===============================================================
-UDPCOMM_MODULE_VERSION=udpComm-R1-0-0
+UDPCOMM_MODULE_VERSION=udpComm-R1-1-0
 
 # ============================================================
 # External Support

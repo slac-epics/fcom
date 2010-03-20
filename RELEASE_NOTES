@@ -1,3 +1,5 @@
+fcom-R1-2-0:  Built against rtems 4.9.4 and EPICS BASE:
+              base-R3-14-8-2-lcls6
 fcom-R1-1-0:
   Added 'fcomDumpIDStats()' which could be a useful diagnostic.
   A linux-host application 'fcget' was added which makes use

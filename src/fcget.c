@@ -1,4 +1,4 @@
-/*$Id: fcget.c,v 1.1 2010/03/19 19:31:19 strauman Exp $*/
+/*$Id: fcget.c,v 1.2 2010/03/19 23:45:44 strauman Exp $*/
 
 /* Get FCOM Blob and dump to stdout */
 
@@ -38,11 +38,11 @@ int
 main(int argc, char **argv)
 {
 int      ch;
-int      rval    = 0;
+int      rval    = 1;
 unsigned tout_ms = 1000;
 int      async   = 0;
 uint64_t llid;
-uint32_t idnt;
+uint32_t idnt    = FCOM_ID_NONE;
 int      st;
 char     *prefix = 0;
 char     *mcifad = 0;
@@ -54,9 +54,9 @@ uint32_t ifaddr;
 
 	while ( (ch = getopt(argc, argv, "vht:ap:")) >= 0 ) {
 		switch (ch) {
-			default:
-				rval = 1;
 			case 'h':
+				rval = 0;
+			default:
 				usage(argv[0]);
 				return rval;
 
@@ -103,8 +103,6 @@ uint32_t ifaddr;
 		usage(argv[0]);
 		return 1;
 	}
-	idnt = (uint32_t)llid;
-
 	if ( mcifad ) {
 		if ( INADDR_NONE == (ifaddr = inet_addr(mcifad)) ) {
 			fprintf(stderr,"Invalid IP address: %s\n", mcifad);
@@ -120,6 +118,8 @@ uint32_t ifaddr;
 		fprintf(stderr,"Unable to initialize FCOM: %s\n", fcomStrerror(st));
 		return 1;
 	}
+
+	idnt = (uint32_t)llid;
 
 	st = fcomSubscribe( idnt, async ? FCOM_ASYNC_GET : FCOM_SYNC_GET );
 
@@ -139,13 +139,13 @@ uint32_t ifaddr;
 		tout.tv_nsec = (tout_ms - tout.tv_sec*1000)*1000000;
 		if ( nanosleep( &tout, 0 ) ) {
 			fprintf(stderr,"Sleep aborted\n");
-			return 1;
+			goto bail;
 		}
 	} else {
 		st = fcomGetBlob( idnt, &blob, tout_ms );
 		if ( st ) {
 			fprintf(stderr,"fcomGetBlob(SYNCH) failed: %s\n", fcomStrerror(st));
-			return 1;
+			goto bail;
 		}
 		fcomReleaseBlob(&blob);
 	}
@@ -153,8 +153,13 @@ uint32_t ifaddr;
 	st = fcomDumpIDStats( idnt, level, stdout );
 	if ( st < 0 ) {
 		fprintf(stderr,"fcomDumpIDStats failed: %s\n", fcomStrerror(st));
-		return 1;
+		goto bail;
 	}
 
-	return 0;
+	rval = 0;
+
+bail:
+	if ( FCOM_ID_NONE != idnt )
+		fcomUnsubscribe( idnt );
+	return rval;
 }

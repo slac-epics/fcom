@@ -1,4 +1,4 @@
-/*$Id: fcget.c,v 1.2 2010/03/19 23:45:44 strauman Exp $*/
+/*$Id: fcget.c,v 1.3 2010/03/22 19:42:07 strauman Exp $*/
 
 /* Get FCOM Blob and dump to stdout */
 
@@ -19,7 +19,7 @@
 static void
 usage(char *nm)
 {
-	fprintf(stderr,"Usage: %s [-ahv] [-t <timeout_ms>] [-p <fcom_mc_prefix>] [-i <fcom_mc_IF>] blob_id\n", nm);
+	fprintf(stderr,"Usage: %s [-ahv] [-t <timeout_ms>] [-p <fcom_mc_prefix>] [-i <fcom_mc_IF>] blob_id {blob_id}\n", nm);
 	fprintf(stderr,"  Options:\n");
 	fprintf(stderr,"       -h print this message\n");
 	fprintf(stderr,"       -a enforce asynchronous 'get'\n");
@@ -37,20 +37,23 @@ usage(char *nm)
 int
 main(int argc, char **argv)
 {
-int      ch;
-int      rval    = 1;
-unsigned tout_ms = 1000;
-int      async   = 0;
-uint64_t llid;
-uint32_t idnt    = FCOM_ID_NONE;
-int      st;
-char     *prefix = 0;
-char     *mcifad = 0;
+int             ch;
+int             rval    = 1;
+unsigned        tout_ms = 1000;
+int             async   = 0;
+uint64_t        llid;
+int             st;
+char            *prefix = 0;
+char            *mcifad = 0;
 struct timespec tout;
 FcomBlobRef     blob;
-int      level   = 0;
-uint32_t ifaddr;
-
+int             level   = 0;
+uint32_t        ifaddr;
+FcomBlobSetRef  set     = 0;
+FcomID          *idnts  = 0;
+int             nids    = 0;
+int             nsubs   = 0;
+int             i;
 
 	while ( (ch = getopt(argc, argv, "vht:ap:")) >= 0 ) {
 		switch (ch) {
@@ -98,15 +101,32 @@ uint32_t ifaddr;
 		 */
 	}
 
-	if ( optind >= argc || 1 != sscanf(argv[optind],"%"SCNi64,&llid) ) {
+	nids = argc - optind;
+
+	if ( nids <= 0 ) {
 		fprintf(stderr,"Missing or non-numeric FCOM blob ID\n");
 		usage(argv[0]);
 		return 1;
 	}
+
+	if ( ! (idnts = malloc( nids * sizeof(FcomID) )) ) {
+		fprintf(stderr,"Not enough memory (for ID array)\n");
+		return 1;
+	}
+
+	for ( i=0; i<nids; i++ ) {
+ 		if (  1 != sscanf(argv[optind+i],"%"SCNi64,&llid) ) {
+			fprintf(stderr,"Non-numeric FCOM blob ID (#%i)\n", i+1);
+			usage(argv[0]);
+			goto bail;
+		}
+		idnts[i] = (FcomID)llid;
+	}
+
 	if ( mcifad ) {
 		if ( INADDR_NONE == (ifaddr = inet_addr(mcifad)) ) {
 			fprintf(stderr,"Invalid IP address: %s\n", mcifad);
-			return 1;
+			goto bail;
 		}
 		udpCommSetIfMcastInp(ifaddr);
 	}
@@ -116,50 +136,85 @@ uint32_t ifaddr;
 
 	if ( st ) {
 		fprintf(stderr,"Unable to initialize FCOM: %s\n", fcomStrerror(st));
-		return 1;
+		goto bail;
 	}
 
-	idnt = (uint32_t)llid;
-
-	st = fcomSubscribe( idnt, async ? FCOM_ASYNC_GET : FCOM_SYNC_GET );
-
-	if ( FCOM_ERR_UNSUPP == st ) {
-		fprintf(stderr,"Warning: synchronous get not supported; using asynchronous mode\n");
+	if ( nids > 1 )
 		async = 1;
-		st    = fcomSubscribe( idnt, FCOM_ASYNC_GET );
-	}
 
-	if ( st ) {
-		fprintf(stderr,"FCOM subscription failed: %s\n", fcomStrerror(st));
-		return 1;
-	}
+	for ( i=0; i<nids; i++ ) {
+		st = fcomSubscribe( idnts[i], async ? FCOM_ASYNC_GET : FCOM_SYNC_GET );
 
-	if ( async ) {
-		tout.tv_sec  = tout_ms/1000;
-		tout.tv_nsec = (tout_ms - tout.tv_sec*1000)*1000000;
-		if ( nanosleep( &tout, 0 ) ) {
-			fprintf(stderr,"Sleep aborted\n");
+		if ( FCOM_ERR_UNSUPP == st ) {
+			fprintf(stderr,"Warning: synchronous get not supported; using asynchronous mode\n");
+			async = 1;
+			st    = fcomSubscribe( idnts[i], FCOM_ASYNC_GET );
+		}
+
+		if ( st ) {
+			fprintf(stderr,"FCOM subscription failed: %s\n", fcomStrerror(st));
 			goto bail;
+		}
+		nsubs++;
+	}
+
+	if ( nids > 1 ) {
+		/* build a set */
+		st = fcomAllocBlobSet( idnts, nids, &set );
+		if ( st ) {
+			fprintf(stderr,"fcomAllocBlobSet failed: %s\n", fcomStrerror(st));
+			set = 0;
+			goto bail;
+		}
+
+		st = fcomGetBlobSet( set, 0, (1<<nids) - 1, FCOM_SET_WAIT_ALL, tout_ms );
+		if ( st ) {
+			fprintf(stderr,"fcomGetBlobSet failed: %s\n", fcomStrerror(st));
+			goto bail;
+		}
+
+		for ( i=0; i<nids; i++ ) {
+			fcomDumpBlob( set->memb[i].blob, level, stdout );
 		}
 	} else {
-		st = fcomGetBlob( idnt, &blob, tout_ms );
+		if ( async ) {
+			tout.tv_sec  = tout_ms/1000;
+			tout.tv_nsec = (tout_ms - tout.tv_sec*1000)*1000000;
+			if ( nanosleep( &tout, 0 ) ) {
+				fprintf(stderr,"Sleep aborted\n");
+				goto bail;
+			}
+		}
+
+		st = fcomGetBlob( idnts[0], &blob, tout_ms );
 		if ( st ) {
-			fprintf(stderr,"fcomGetBlob(SYNCH) failed: %s\n", fcomStrerror(st));
+			fprintf(stderr,"fcomGetBlob(%sSYNCH) failed: %s\n", async ? "A":"", fcomStrerror(st));
 			goto bail;
 		}
+		st = fcomDumpBlob( blob, level, stdout );
 		fcomReleaseBlob(&blob);
-	}
-
-	st = fcomDumpIDStats( idnt, level, stdout );
-	if ( st < 0 ) {
-		fprintf(stderr,"fcomDumpIDStats failed: %s\n", fcomStrerror(st));
-		goto bail;
+		if ( st < 0 ) {
+			fprintf(stderr,"fcomDumpBlob failed: %s\n", fcomStrerror(st));
+			goto bail;
+		}
 	}
 
 	rval = 0;
 
 bail:
-	if ( FCOM_ID_NONE != idnt )
-		fcomUnsubscribe( idnt );
+	if ( set ) {
+		st = fcomFreeBlobSet( set );
+		if ( st )
+			fprintf(stderr,"fcomFreeBlobSet failed: %s\n", fcomStrerror(st));
+	}
+
+	for ( i=0; i<nsubs; i++ ) {
+		st = fcomUnsubscribe( idnts[i] );
+		if ( st )
+			fprintf(stderr,"fcomUnsubscribe("FCOM_ID_FMT") failed: %s\n", idnts[i], fcomStrerror(st));
+	}
+
+	free( idnts );
+
 	return rval;
 }

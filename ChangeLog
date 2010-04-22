@@ -1,5 +1,11 @@
 2010-03-21 (T.S.)
 
+	* src/fcget.c: Accept multiple IDs on command line and use a blob set
+	if the user gave more than one.
+	Replaced call to fcomDumpIDStats() by fcomDumpBlob().
+
+2010-03-21 (T.S.)
+
 	* src/fc_recv.c:
 	 o implemented support for 'blob sets' (THIS FEATURE REQUIRES PTHREADS)
 	   which allows a single thread to block for arrival of a set of blobs.

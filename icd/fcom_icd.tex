@@ -473,7 +473,7 @@ data from the cache.
 	\subsubsection{Sets}
                     The implementation may define {\em blob sets}\/
                     which consist of a set of IDs. An application may
-                    retrieve a \set{} in a single operation. \Set{}s allow
+                    retrieve a \set{} with a single operation. \Set{}s allow
                     an application to block for the arrival of new data
                     for all members of the \set{} (or a subset).
                     Such a feature could be very useful if a single
@@ -700,6 +700,7 @@ synchronization feature%
   fcomReleaseBlob( &before );
   fromReleaseBlob( &after );
       \end{verbatim}
+
     \subsubsection{Sets}
       The features and entry points described in this subsection are {\em optional},
       i.e., they need to be enabled at compile-time and might require the availability

@@ -1,3 +1,18 @@
+2010-03-21 (T.S.)
+
+	* icd/fcom_api.h:
+	 o include <inttypes.h> and define format string (FCOM_ID_FMT) for printing IDs.
+	 o added new error code FCOM_ERR_ID_IN_USE.
+	 o added declaration of new fcomDumpBlob() entry point (identical to
+	   fcomDumpIDStats() but a given blob handle may be passed instead of an ID
+	   thus avoiding a lookup).
+	 o added API declaration of new 'blob set' feature which allows a single thread
+	   to block for arrival of a set of blobs.
+
+2010-03-21 (T.S.)
+
+	* src/Makefile: made test programs PROD_HOST instead of PROD_Linux.
+
 2010-03-19 (T.S.)
 
 	* src/fc_init.c, src/fc_recv.c, src/fcomP.h:

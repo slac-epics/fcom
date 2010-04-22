@@ -1,8 +1,8 @@
-/* $Id: fcom_api.h,v 1.6 2009/11/12 23:11:32 strauman Exp $ */
+/* $Id: fcom_api.h,v 1.7 2010/03/19 19:28:14 strauman Exp $ */
 #ifndef FCOM_API_HEADER_H
 #define FCOM_API_HEADER_H
 
-#include <stdint.h>
+#include <inttypes.h>
 #include <stdio.h>
 
 #ifdef __cplusplus
@@ -51,6 +51,9 @@ extern "C" {
  * cast to/from 'uint32_t')
  */
 typedef uint32_t FcomID;
+
+/* Use this format string to print FCOM IDs */
+#define FCOM_ID_FMT "0x%08"PRIx32
 
 /*
  * ID to identify the 'group' a blob belongs to.
@@ -250,6 +253,7 @@ typedef struct FcomBlob_ {
 #define FCOM_ERR_NO_DATA        (-11)
 #define FCOM_ERR_UNSUPP         (-12)
 #define FCOM_ERR_TIMEDOUT       (-13)
+#define FCOM_ERR_ID_IN_USE      (-14)
 
 #define FCOM_ERR_SYS(errno)     (-((errno) | (1<<16)))
 #define FCOM_ERR_IS_SYS(st)     ( (st) < 0 && ((-(st)) & (1<<16)))
@@ -476,6 +480,96 @@ fcomGetBlob(FcomID id, FcomBlobRef *pp_blob, uint32_t timeout_ms);
 int
 fcomReleaseBlob(FcomBlobRef *pp_blob);
 
+/*
+ * BLOB SETS
+ *
+ * Sets of blobs allow an application to block until
+ * either any or all of the listed blobs arrive.
+ */
+
+typedef uint32_t FcomBlobSetMask;
+
+/* Opaque type; for FCOM internal use only */
+typedef struct FcomBlobSetHdr  *FcomBlobSetHdrRef;
+
+typedef struct FcomBlobSetMemb *FcomBlobSetMembRef;
+
+typedef struct FcomBlobSetMemb {
+	FcomID			idnt;
+	FcomBlobRef		blob;
+	FcomBlobSetHdrRef	head; /* for INTERNAL USE ONLY */
+	FcomBlobSetMembRef      next; /* for INTERNAL USE ONLY */
+} FcomBlobSetMemb;
+
+typedef struct FcomBlobSet_ {
+	unsigned            nmemb;
+	FcomBlobSetMemb     memb[];
+} FcomBlobSet, *FcomBlobSetRef;
+
+/* Allocate a set of blobs. You must pass a list of IDs and will obtain
+ * a set with all memb[i].blob references == NULL.
+ * All IDs must previously have been subscribed and none of them
+ * can be unsubscribed (i.e. the nest count cannot drop to zero)
+ * while being member of a set.
+ *
+ * After use, the set can be destroyed with fcomFreeBlobSet().
+ *
+ * RETURNS: Zero on success error status on failure. A valid set reference
+ *          is only returned in *pp_set if the call is successful.
+ *
+ * NOTES:   Sets are 'single threaded', i.e., it is a programming error
+ *          if multiple threads pass the same set to fcomGetBlobSet()
+ *          simultaneously.
+ *          It is also a programming error to free a set while a
+ *          fcomGetBlobSet() operation is in progress.
+ */
+int
+fcomAllocBlobSet(FcomID member_id[], unsigned num_members, FcomBlobSetRef *pp_set);
+
+/* Destroy a blob set. Any remaining (non-NULL) blob references memb[i].blob are
+ * automatically released.
+ *
+ * RETURNS: zero on success, nonzero (status) on error.
+ */
+int
+fcomFreeBlobSet(FcomBlobSetRef p_set);
+
+/*
+ * Wait for a set of blobs to arrive.
+ * 
+ * The 'waitfor' and '*p_res' arguments are bitmasks with bit (1<<i) corresponding
+ * to set member 'i' in p_set->memb[i].
+ * 
+ * If the FCOM_SET_WAIT_ANY flag is passed then the call returns if any of the members
+ * with its corresponding bit in 'waitfor' is updated.
+ * If FCOM_SET_WAIT_ALL is passed then the call only returns when all members with
+ * their bits set in 'waitfor' are updated (or the timeout expires).
+ *
+ * All members that were updated while waiting will have their bit set in *p_res
+ * upon return.
+ *
+ * RETURNS: zero on success or nonzero failure status.
+ *
+ * NOTES:   Even if the timeout expires (FCOM_ERR_TIMEDOUT) some members still
+ *          may have been updated (with their bit set in p_res).
+ *
+ *          It is legal to repeatedly call fcomGetBlobSet() with the same 'p_set'
+ *          reference. Any non-null blob references that are 'attached' to the set
+ *          are automatically released.
+ *
+ *          If the user wants to 'preserve' a blob reference then the corresponding
+ *          memb[i].blob pointer must be set to NULL but it is then the user's
+ *          responsibility to execute fcomReleaseBlob() explicitly.
+ *
+ *          Only blobs that were requested in the 'waitfor' mask are updated.
+ *        
+ */
+#define FCOM_SET_WAIT_ANY	0
+#define FCOM_SET_WAIT_ALL	1
+
+int
+fcomGetBlobSet(FcomBlobSetRef p_set, FcomBlobSetMask *p_res,  FcomBlobSetMask waitfor, int flags, uint32_t timeout_ms);
+
 
 /** STATISTICS *******************************************************/
 
@@ -535,7 +629,7 @@ fcomGetStats(int n_keys, uint32_t key_arr[], uint64_t value_arr[]);
 #define FCOM_STAT_RX_ERR_BAD_BVERS        FCOM_RX_32_STAT(5)
 /* Number of msgs/groups with bad/unknown version received */
 #define FCOM_STAT_RX_ERR_BAD_MVERS        FCOM_RX_32_STAT(6)
-/* Number of failed synchronous broadcasts                 */
+/* Number of failed synchronous or set member broadcasts   */
 #define FCOM_STAT_RX_ERR_BAD_BCST         FCOM_RX_32_STAT(7)
 /* Number of subscribed blobs                              */
 #define FCOM_STAT_RX_NUM_BLOBS_SUBS       FCOM_RX_32_STAT(8)
@@ -570,10 +664,17 @@ fcomGetStats(int n_keys, uint32_t key_arr[], uint64_t value_arr[]);
  * If 'level' is nonzero then more verbose information is
  * printed (including payload data).
  *
- * RETURNS: Number of characters printed.
+ * RETURNS: Number of characters printed or (negative) error status.
  */
 int
 fcomDumpIDStats(FcomID idnt, int level, FILE *f);
+
+/* Like fcomDumpIDStats but dump info about a given blob
+ *
+ * RETURNS: Number of characters printed or (negative) error status.
+ */
+int
+fcomDumpBlob(FcomBlobRef blob, int level, FILE *f);
 
 
 /** EXAMPLES *********************************************************/

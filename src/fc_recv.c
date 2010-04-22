@@ -1,4 +1,4 @@
-/* $Id: fc_recv.c,v 1.7 2010/03/19 19:28:14 strauman Exp $ */
+/* $Id: fc_recv.c,v 1.8 2010/03/19 23:46:05 strauman Exp $ */
 
 /* 
  * Implementation of the FCOM receiver's high-level parts.
@@ -65,6 +65,7 @@
 #include <fcomP.h>
 #include <xdr_dec.h>
 #include <sys/time.h>
+#include <time.h>
 #include <netinet/in.h> /* for htonl & friends only */
 
 #include <config.h>
@@ -180,6 +181,11 @@ static epicsMutexId fcl_##x;
 #undef SUPPORT_SYNCGET
 #endif
 
+#ifdef USE_PTHREADS
+#include <time.h>
+#include <unistd.h> /* for _POSIX_TIMERS */
+#endif
+
 /* Macro to verify that an FCOM id is of major protocol version 1 */
 #define NOT_V1(idnt) ( FCOM_GET_MAJ(idnt) != FCOM_PROTO_MAJ_1 )
 
@@ -222,7 +228,7 @@ typedef struct BufHdr {
 	uint16_t       subCnt, refCnt; /* subscription and reference counts */
 	uint16_t       size;           /* size of this buffer               */
 	uint8_t        type;           /* type of this buffer               */
-	uint8_t        flags;          /* currently unused                  */
+	uint8_t        setNodeIdx;     /* idx into set node table (if != 0) */
 	uint32_t       updCnt;         /* statistics; # of received blobs   */
 } BufHdr, *BufHdrRef;
 
@@ -244,6 +250,32 @@ typedef struct BufChunk {
 	uint8_t          raw[];  /* buffers reside here */
 } BufChunk, *BufChunkRef;
 
+/* Blob Sets                  */
+#define MAX_SETMEMB          (8*sizeof(FcomBlobSetMask))
+
+#ifdef USE_PTHREADS
+typedef struct FcomBlobSetHdr {
+	FcomBlobSetMask  waitfor;
+	FcomBlobSetMask  gotsofar;
+	int              waitforall;
+	pthread_cond_t   cond;      /* cond. var. (while buf in use)     */
+	FcomBlobSet      set;
+} FcomBlobSetHdr;
+
+/* Vector table for BlobSetNodes so that we only
+ * need 1 byte in a BufHdr
+ */
+static union {
+	FcomBlobSetMemb *node;
+	unsigned         next;	/* for linking on a 'free' list */
+} setNodeTbl[ 1 << (8*sizeof(((BufHdrRef)0)->setNodeIdx)) ] = {{0}};
+
+static int setNodeAvail = sizeof(setNodeTbl)/sizeof(setNodeTbl[0]) - 1;
+
+#define SET_NODE_FREE_LIST setNodeTbl[0].next
+
+#endif /* USE_PTHREADS for blob sets */
+
 /* Pools of buffers of different sizes */
 static struct {
 	BufRef      free_list;
@@ -253,8 +285,8 @@ static struct {
 	unsigned    avail;      /* stats: avail. bufs of this size  */
 	unsigned    wght;       /* relative amount at startup       */
 } fc_free [] =  {
-	{ wght: 4,   free_list: 0, chunks: 0, sz:    64, tot: 0, avail: 0 },
-	{ wght: 2,  free_list: 0, chunks: 0, sz:   128, tot: 0, avail: 0 },
+	{ wght: 4, free_list: 0, chunks: 0, sz:    64, tot: 0, avail: 0 },
+	{ wght: 2, free_list: 0, chunks: 0, sz:   128, tot: 0, avail: 0 },
 	{ wght: 1, free_list: 0, chunks: 0, sz:   512, tot: 0, avail: 0 },
 	{ wght: 1, free_list: 0, chunks: 0, sz:  2048, tot: 0, avail: 0 },
 };
@@ -269,9 +301,7 @@ static volatile struct {
 	uint32_t    dec_errs;			/* xdr decoder errors encountered                         */
 	uint32_t    n_msg;              /* # of messages/groups received so far                   */
 	uint32_t    n_blb;              /* # of blobs received so far                             */
-#ifdef SUPPORT_SYNCGET
 	uint32_t    bad_cond_bcst;		/* # of failed pthread_cond_broadcast()s                  */
-#endif
 } fc_stats = {0};
 
 
@@ -298,6 +328,14 @@ unsigned t,a;
 		fprintf(stderr,"Size %4u: Tot %4u -- Available %4u -- Used %4u\n",
 			fc_free[i].sz, t, a, t-a);
 	}
+}
+
+static __inline__ BufRef
+BLOB2BUFR(FcomBlobRef p_blob)
+{
+	return (BufRef) ( (uintptr_t) (p_blob)
+                    - (  (uintptr_t)  &((BufRef)(0))->pld 
+                       - (uintptr_t)   (0) ) );
 }
 
 /* Obtain a free buffer suitable to hold at least 'sz' of payload data
@@ -390,7 +428,7 @@ uint16_t sz;
 		hd = ptr = (void*) FC_ALIGN(new_chunk->raw);
 
 		/* initialize buffer headers and link them all together
-         * BEFORE acquiring lock.
+		 * BEFORE acquiring lock.
 		 */
 		for ( i=0; i<n; i++ ) {
 			tl   = ptr;
@@ -400,7 +438,7 @@ uint16_t sz;
 			tl->hdr.ptr.next   = ptr;
 			tl->hdr.size       = sz;
 			tl->hdr.type       = t;
-			tl->hdr.flags      = 0;
+			tl->hdr.setNodeIdx = 0;
 			tl->hdr.subCnt     = 0;
 			tl->hdr.refCnt     = 0;
 		}
@@ -462,6 +500,12 @@ int    err;
 	}
 
 	if ( 0 == --buf->hdr.subCnt ) {
+		if ( buf->hdr.setNodeIdx ) {
+			/* This ID is member of a set; cannot unsubscribe */
+			buf->hdr.subCnt++;
+			return FCOM_ERR_ID_IN_USE;
+		}
+
 #if defined(SUPPORT_SYNCGET)
 		if ( buf->hdr.ptr.cond ) {
 			/* If they try to unsubscribe a blob that some thread
@@ -476,7 +520,7 @@ int    err;
 			 */
 			if ( (err = pthread_cond_destroy( buf->hdr.ptr.cond )) ) {
 				buf->hdr.subCnt++;
-				return FCOM_ERR_SYS(-err);
+				return FCOM_ERR_SYS(err);
 			}
 			/* defer 'free()' until after fcl_tbl lock is released */
 			*p_to_free = buf->hdr.ptr.cond;
@@ -626,7 +670,7 @@ void          *garb;
 				if ( err ) {
 					free(cond);
 					cond = 0;
-					err = FCOM_ERR_SYS(-err);
+					err = FCOM_ERR_SYS(err);
 				}
 			}
 
@@ -665,7 +709,7 @@ void          *garb;
 			 * a condvar attached from a previous call THEN the
 			 * subscription count must have been at least 2 on
 			 * entry to fc_rmbuf()...
-             */
+			 */
 			free(garb);
 
 			if ( err ) {
@@ -706,7 +750,7 @@ void          *garb;
 int
 fcomUnsubscribe(FcomID idnt)
 {
-int      err;
+int      rval;
 uint32_t gid;
 void     *garb;
 
@@ -728,21 +772,22 @@ void     *garb;
 	 */
 	__FC_LOCK_GRP();
 		__FC_LOCK();
-			err = fc_rmbuf(idnt, &garb);
+			rval = fc_rmbuf(idnt, &garb);
 		__FC_UNLOCK();
 
 		/* release left-over garbage outside the locked area */
 		free(garb);
 
-		if ( err ) {
+		if ( rval ) {
 			__FC_UNLOCK_GRP();
-			return err;
+			return rval;
 		}
 
-		err = fc_relmc(gid);
+		rval = fc_relmc(gid);
 
 	__FC_UNLOCK_GRP();
-	return err;
+
+	return rval;
 }
 
 #if !defined(__rtems__)
@@ -791,6 +836,41 @@ int      rx_prdx     =  0;
 #define ADDPROF(i,ts) do {} while(0)
 #endif
 
+static int
+ms2timeout(struct timespec *tout, uint32_t timeout_ms)
+{
+#if _POSIX_TIMERS > 0
+int err;
+struct timespec now;
+#else
+struct timeval  now;
+#endif
+
+	tout->tv_sec  = timeout_ms / 1000;
+	tout->tv_nsec = (timeout_ms - 1000 * tout->tv_sec) * 1000000;
+
+#if _POSIX_TIMERS > 0
+	if ( (err = clock_gettime(CLOCK_REALTIME, &now)) ) {
+		return FCOM_ERR_SYS(-err); /* returned error is already negative */
+	}
+	tout->tv_nsec += now.tv_nsec;
+#else
+	if ( gettimeofday(&now, 0) ) {
+		return FCOM_ERR_SYS(errno);
+	}
+	tout->tv_nsec += now.tv_usec * 1000;
+#endif
+
+	tout->tv_sec  += now.tv_sec;
+
+	if ( tout->tv_nsec > 1000000000UL ) {
+		tout->tv_nsec -= 1000000000UL;
+		tout->tv_sec  += 1;
+	}
+
+	return 0;
+}
+
 
 /* Fetch data as defined by API */
 int
@@ -800,8 +880,6 @@ BufRef          buf;
 int             rval;
 #if defined(SUPPORT_SYNCGET)
 struct timespec tout;
-struct timeval  now;
-uint32_t        usec;
 #endif
 
 	/* hashtable assumes blob V1 layout to locate key */
@@ -816,17 +894,8 @@ uint32_t        usec;
 		/* pre-compute absolute timeout as required by
          * pthread_cond_timedwait()
 		 */
-		if ( gettimeofday(&now, 0) ) {
-			return FCOM_ERR_SYS(-errno);
-		}
-		tout.tv_sec  = timeout_ms/1000;
-		usec         = now.tv_usec + (timeout_ms - tout.tv_sec*1000)*1000;
-		if ( usec > 1000000 ) {
-			usec        -= 1000000;
-			tout.tv_sec += 1;
-		}
-		tout.tv_sec += now.tv_sec;
-		tout.tv_nsec = usec*1000;
+		if ( (rval = ms2timeout(&tout, timeout_ms)) )
+			return rval;
 #else
 		return FCOM_ERR_UNSUPP;
 #endif
@@ -852,7 +921,7 @@ uint32_t        usec;
 			ADDPROF(rx_prdx, tout);
 
 			if ( rval ) {
-				rval = ETIMEDOUT == rval ? FCOM_ERR_TIMEDOUT : FCOM_ERR_SYS(-rval);
+				rval = ETIMEDOUT == rval ? FCOM_ERR_TIMEDOUT : FCOM_ERR_SYS(rval);
 				__FC_UNLOCK();
 				return rval;
 			}
@@ -895,10 +964,13 @@ int
 fcomReleaseBlob(FcomBlobRef *pp_blob)
 {
 BufRef buf;
+
+	if ( 0 == *pp_blob )
+		return 0;
+
 	/* use some magic to compute the 'buf' pointer */
-	buf = (BufRef)(      (uintptr_t)  (*pp_blob)
-                    - (  (uintptr_t)  &((BufRef)(0))->pld
-                       - (uintptr_t)   (0) ) );
+	buf = BLOB2BUFR(*pp_blob);
+
 	__FC_LOCK();
 		fc_relb(buf);
 	__FC_UNLOCK();
@@ -906,6 +978,251 @@ BufRef buf;
 	*pp_blob = 0;
 	return 0;
 }
+
+int
+fcomAllocBlobSet(FcomID member_id[], unsigned num_members, FcomBlobSetRef *pp_set)
+{
+int                rval = 0;
+#ifdef USE_PTHREADS
+int                i, j;
+int                nodes_needed;
+FcomBlobSetHdrRef  aset = 0;
+BufHdrRef          buf;
+
+	/* basic check on arguments */
+
+	/* Need always at least 1 member */
+	if ( num_members < 1 || num_members > MAX_SETMEMB )
+		return FCOM_ERR_INVALID_COUNT;
+
+	for ( j = 0; j < num_members; j++ ) {
+		if ( NOT_V1(member_id[j]) )
+			return FCOM_ERR_BAD_VERSION;
+
+		if ( ! FCOM_ID_VALID(member_id[j]) ) {
+			return FCOM_ERR_INVALID_ID;
+		}
+
+		for ( i=0; i<j; i++ ) {
+			/* We assume all IDs are different */
+			if ( member_id[i] == member_id[j] ) {
+				return FCOM_ERR_INVALID_ARG;
+			}
+		}
+	}
+
+	/* reserve space for header and member structs */
+	i = sizeof(*aset) + num_members * sizeof(aset->set.memb[0]);
+
+	if ( ! (aset = malloc(i)) ) {
+		return FCOM_ERR_NO_MEMORY;
+	}
+
+	memset(aset, 0, i);
+
+	rval = pthread_cond_init(&aset->cond, 0);
+
+	if ( rval ) {
+		free(aset);
+		return FCOM_ERR_SYS(rval);
+	}
+
+	/* Use group lock to protect sets and also to make sure
+	 * subscriptions don't change while we're manipulating the set.
+	 */
+	nodes_needed = 0;
+
+	__FC_LOCK_GRP();
+			/* Verify that all IDs are subscribed and count
+			 * number of nodes required. Nobody else can mess
+			 * with nodes since we're holding the group lock!
+			 */
+			for ( i=0; i<num_members; i++ ) {
+					__FC_LOCK();
+					buf = shtblFind(bTbl, member_id[i]);
+					if ( buf ) {
+						if ( 0 == buf->setNodeIdx )
+							nodes_needed++;
+						/* else: a node table slot has already been allocated for this buf */
+						__FC_UNLOCK();
+					} else {
+						__FC_UNLOCK();
+						rval = FCOM_ERR_NOT_SUBSCRIBED;
+						goto bail;
+					}
+			}
+
+			if ( nodes_needed > setNodeAvail ) {
+				rval = FCOM_ERR_NO_SPACE;
+				goto bail;
+			}
+
+			setNodeAvail    -= nodes_needed;
+
+			aset->waitfor    = 0;
+			aset->gotsofar   = 0;
+			aset->waitforall = 0;
+
+			aset->set.nmemb  = num_members;
+
+			for ( i=0; i<num_members; i++ ) {
+					aset->set.memb[i].idnt = member_id[i];
+					aset->set.memb[i].blob = 0;
+					aset->set.memb[i].head = aset;
+					/* Enqueue in member list */
+					__FC_LOCK();
+					buf = shtblFind(bTbl, member_id[i]);
+					if ( buf ) {
+							if ( 0 == buf->setNodeIdx ) {
+									/* Not yet member of any group; allocate
+									 * a pointer from the vector table.
+									 */
+									buf->setNodeIdx    = SET_NODE_FREE_LIST;
+									SET_NODE_FREE_LIST = setNodeTbl[SET_NODE_FREE_LIST].next;
+									setNodeTbl[buf->setNodeIdx].node = 0;
+							}
+							/* enqueue into list of memberships of this buf */
+							aset->set.memb[i].next           = setNodeTbl[buf->setNodeIdx].node;
+							setNodeTbl[buf->setNodeIdx].node = &aset->set.memb[i];
+					} else {
+							fprintf(stderr,"FATAL (FCOM): BUF DISAPPEARED??\n");
+							fflush(stderr);
+							abort();
+					}
+					__FC_UNLOCK();
+			}
+
+			*pp_set = &aset->set;
+			aset    = 0;
+bail:
+	__FC_UNLOCK_GRP();
+
+	if ( aset ) {
+		pthread_cond_destroy( &aset->cond );
+		free( aset );
+	}
+#else
+	rval = FCOM_ERR_UNSUPP;
+#endif
+	return rval;
+}
+
+int
+fcomFreeBlobSet(FcomBlobSetRef p_set)
+{
+int                rval;
+#ifdef USE_PTHREADS
+int                i;
+FcomBlobSetHdrRef  aset = p_set->memb[0].head; /* There must be at least one member */
+BufHdrRef          buf;
+FcomBlobSetMembRef *p_m;
+
+	__FC_LOCK_GRP();
+
+	__FC_LOCK();
+	/* If a 'fcomGetBlobSet()' operation is in progress this fails with EBUSY */
+	rval = pthread_cond_destroy( &aset->cond );
+	__FC_UNLOCK();
+
+	if ( rval ) {
+		__FC_UNLOCK_GRP();
+		return FCOM_ERR_SYS(rval);
+	}
+	
+	for ( i=0; i<aset->set.nmemb; i++ ) {
+		__FC_LOCK();
+			/* If there is still blob attached then release it */
+			if ( aset->set.memb[i].blob ) {
+				fc_relb( BLOB2BUFR( aset->set.memb[i].blob ) );
+			}
+			buf = shtblFind(bTbl, aset->set.memb[i].idnt);
+			if ( ! buf ) {
+				fprintf(stderr,"FATAL (FCOM): MEMBER OF A SET DISAPPEARED??\n");
+				fflush(stderr);
+				abort();
+			}
+			if ( 0 == buf->setNodeIdx ) {
+				fprintf(stderr,"FATAL (FCOM): MEMBER OF A SET HAS 0 setNodeIdx??\n");
+				fflush(stderr);
+				abort();
+			}
+			/* Look for this member and remove */
+			for ( p_m = &setNodeTbl[buf->setNodeIdx].node; *p_m; p_m = &(*p_m)->next ) {
+				if ( *p_m == &aset->set.memb[i] ) {
+					/* found */
+					*p_m = aset->set.memb[i].next;
+					aset->set.memb[i].next = 0; /* paranoia */
+					/* no point in continuing */
+					break;
+				}
+			}
+			/* If this is the last set membership release vector table slot */
+			if ( 0 == setNodeTbl[buf->setNodeIdx].node ) {
+				setNodeTbl[buf->setNodeIdx].next = SET_NODE_FREE_LIST;
+				SET_NODE_FREE_LIST               = buf->setNodeIdx;
+				setNodeAvail++;
+				buf->setNodeIdx                  = 0;
+			}
+		__FC_UNLOCK();
+	}
+
+	__FC_UNLOCK_GRP();
+
+	free( aset );
+
+#else
+	rval = FCOM_ERR_UNSUPP;
+#endif
+
+	return rval;
+}
+
+int
+fcomGetBlobSet(FcomBlobSetRef p_set, FcomBlobSetMask *p_res, FcomBlobSetMask waitfor, int flags, uint32_t timeout_ms)
+{
+int               rval;
+#ifdef USE_PTHREADS
+FcomBlobSetHdrRef aset;
+struct timespec   tout;
+
+	if ( ! p_set || ! waitfor || 0 == timeout_ms ) {
+		return FCOM_ERR_INVALID_ARG;
+	}
+
+	/* There is at least one member */
+	aset = p_set->memb[0].head;
+
+	/* pre-compute timeout */
+	if ( (rval = ms2timeout( &tout, timeout_ms )) ) {
+		return rval;
+	}
+
+	__FC_LOCK();
+		aset->waitfor    = waitfor;
+		aset->waitforall = (FCOM_SET_WAIT_ALL & flags);
+		aset->gotsofar   = 0;
+
+		rval = pthread_cond_timedwait( &aset->cond, &fcl_tbl, &tout);
+
+		/* reset 'waitfor'. If we timed out we don't want to
+		 * get any 'late' data.
+		 */
+		aset->waitfor    = 0;
+
+	__FC_UNLOCK();
+
+	if ( p_res )
+		*p_res = aset->gotsofar;
+
+	if ( rval )
+		rval = ETIMEDOUT == rval ? FCOM_ERR_TIMEDOUT : FCOM_ERR_SYS(rval);
+
+#else
+	rval = FCOM_ERR_UNSUPP;
+#endif
+	return rval;
+}
+
 
 static const char *t2s(uint8_t t)
 {
@@ -922,7 +1239,7 @@ static const char *t2s(uint8_t t)
 }
 
 int
-fcomDumpIDStats(FcomID idnt, int level, FILE *f)
+fcomDumpBlob(FcomBlobRef blob, int level, FILE *f)
 {
 BufRef buf;
 int    i;
@@ -931,24 +1248,26 @@ int    rval = 0;
 	if ( ! f )
 		f = stdout;
 
-	__FC_LOCK();
-
-	if ( (buf = shtblFind( bTbl, idnt )) ) {
-		fc_refb(buf);
-	} 
-
-	__FC_UNLOCK();
-
-	if ( ! buf ) {
-		return fprintf(f,"fcomDumpIDStats: %s\n", fcomStrerror(FCOM_ERR_NOT_SUBSCRIBED));
+	if ( !blob ) {
+		return FCOM_ERR_INVALID_ARG;
 	}
 
-	rval += fprintf(f,"Statistics for FCOM ID 0x%08"PRIx32":\n", idnt);
+	buf = BLOB2BUFR( blob );
+
+	rval += fprintf(f,"Statistics for FCOM ID 0x%08"PRIx32":\n", buf->pld.fc_idnt);
 	rval += fprintf(f,"  Subscriptions :       %4u\n",           buf->hdr.subCnt);
 	rval += fprintf(f,"  Buffer updates:       %4"PRIu32"\n",    buf->hdr.updCnt);
 	if ( level > 0 ) {
 		rval += fprintf(f,"  Buffer size   :       %4u\n",           buf->hdr.size);
 		rval += fprintf(f,"  Buffer refcnt :       %4u\n",           buf->hdr.refCnt);
+	}
+	if ( level > 0 || buf->hdr.setNodeIdx ) {
+		rval += fprintf(f,"  Blobset member:       ");
+		if ( buf->hdr.setNodeIdx ) {
+			rval += fprintf(f, "YES (idx %3u)\n", buf->hdr.setNodeIdx);
+		} else {
+			rval += fprintf(f, "NONE\n");
+		}
 	}
 
 	if ( FCOM_EL_NONE == buf->pld.fc_type ) {
@@ -999,6 +1318,32 @@ int    rval = 0;
 		}
 	}
 
+	return rval;
+}
+
+int
+fcomDumpIDStats(FcomID idnt, int level, FILE *f)
+{
+BufRef buf;
+int    rval = 0;
+
+	if ( ! f )
+		f = stdout;
+
+	__FC_LOCK();
+
+	if ( (buf = shtblFind( bTbl, idnt )) ) {
+		fc_refb(buf);
+	} 
+
+	__FC_UNLOCK();
+
+	if ( ! buf ) {
+		return fprintf(f,"fcomDumpIDStats: %s\n", fcomStrerror(FCOM_ERR_NOT_SUBSCRIBED));
+	}
+
+	rval = fcomDumpBlob( &buf->pld, level, f );
+
 	__FC_LOCK();
 		fc_relb(buf);
 	__FC_UNLOCK();
@@ -1029,10 +1374,8 @@ unsigned sz,n;
                fc_stats.n_msg);
 	fprintf(f, "  blobs processed:                       %9"PRIu32"\n",
                fc_stats.n_blb);
-#ifdef SUPPORT_SYNCGET
-	fprintf(f, "  failed syncget broadcasts:             %9"PRIu32"\n",
+	fprintf(f, "  failed syncget or set member bcasts    %9"PRIu32"\n",
                fc_stats.bad_cond_bcst);
-#endif
 	if ( bTbl ) {
 		shtblStats(bTbl, &sz, &n);
 	fprintf(f, "  hash table size/entries/load: %u/%u/%.0f%%\n",
@@ -1071,11 +1414,9 @@ unsigned kind = FCOM_STAT_KIND(key);
 			v = fc_stats.bad_msg_version;
 		break;
 
-#ifdef SUPPORT_SYNCGET
 		case FCOM_STAT_RX_ERR_BAD_BCST:
 			v = fc_stats.bad_cond_bcst;
 		break;
-#endif
 
 		case FCOM_STAT_RX_NUM_BLOBS_SUBS:
 			shtblStats(bTbl, &sz, &nused);
@@ -1125,11 +1466,17 @@ unsigned kind = FCOM_STAT_KIND(key);
 int
 fcom_receive(unsigned timeout_ms)
 {
-UdpCommPkt p;
-uint32_t   *xmemp;
-int        i,nblobs,sz,xsz;
-BufRef     buf,obuf;
-FcomID     idnt;
+UdpCommPkt         p;
+uint32_t           *xmemp;
+int                i,nblobs,sz,xsz;
+BufRef             buf,obuf;
+FcomID             idnt;
+#if defined(USE_PTHREADS)
+FcomBlobSetHdrRef  aset;
+FcomBlobSetMembRef amemb;
+FcomBlobSetMask    wanted;
+FcomBlobSetMask    me;
+#endif
 
 #ifdef ENABLE_PROFILE
 struct timespec tstmp;
@@ -1206,16 +1553,56 @@ struct timespec tstmp;
 								 * the subscription count and cond-var
                                  * into the new buffer.
 								 */
-								buf->hdr.updCnt    = obuf->hdr.updCnt + 1;
-								buf->hdr.subCnt    = obuf->hdr.subCnt;
+								buf->hdr.updCnt      = obuf->hdr.updCnt + 1;
+								buf->hdr.subCnt      = obuf->hdr.subCnt;
+								buf->hdr.setNodeIdx  = obuf->hdr.setNodeIdx;
+								obuf->hdr.setNodeIdx = 0;
+
 #if defined(SUPPORT_SYNCGET)
-								buf->hdr.ptr.cond  = obuf->hdr.ptr.cond;
-								obuf->hdr.ptr.cond = 0;
+								buf->hdr.ptr.cond    = obuf->hdr.ptr.cond;
+								obuf->hdr.ptr.cond   = 0;
+
 								if ( buf->hdr.ptr.cond ) {
 									/* post to blocked clients */
 		ADDPROF(rx_prdx, tstmp); 
 									if ( pthread_cond_broadcast( buf->hdr.ptr.cond ) ) {
 										fc_stats.bad_cond_bcst++;
+									}
+		ADDPROF(rx_prdx, tstmp); 
+								}
+#endif
+#if defined(USE_PTHREADS)
+								if ( buf->hdr.setNodeIdx ) {
+		ADDPROF(rx_prdx, tstmp); 
+									for ( amemb = setNodeTbl[buf->hdr.setNodeIdx].node;
+									      amemb;
+									      amemb = amemb->next
+									    ) {
+										aset = amemb->head;
+										me   = (1<<(amemb - aset->set.memb));
+										if ( ! (aset->waitfor & me) )
+											continue; /* I'm not wanted */
+
+										if ( amemb->blob )
+											fc_relb( BLOB2BUFR( amemb->blob ) );
+										amemb->blob     = &buf->pld;
+
+										fc_refb( buf );
+
+										aset->gotsofar |= me;
+										/* AND operation not really necessary since
+										 * all 'me' have been tested against waitfor
+										 */
+										wanted          = aset->gotsofar & aset->waitfor;
+										if (   ( aset->waitforall && (wanted == aset->waitfor) )
+										    || ( !aset->waitforall && wanted ) ) {
+											if ( pthread_cond_broadcast(&aset->cond) ) {
+												fc_stats.bad_cond_bcst++;
+											} else {
+												/* Disable further updates */
+												aset->waitfor = 0;
+											}
+										}
 									}
 		ADDPROF(rx_prdx, tstmp); 
 								}
@@ -1452,6 +1839,20 @@ uintptr_t key_off,n;
 		fprintf(stderr,"Fatal Error: Unable to create FCOM hash table\n");
 		return FCOM_ERR_INTERNAL;
 	}
+
+#ifdef USE_PTHREADS
+	/* Initialize set node table; link everything on 'free' list;
+	 * since index 0 in the BufHdr is reserved (means: not member
+	 * of any set) we use this as the anchor for the free list.
+	 */
+	SET_NODE_FREE_LIST = 0;
+	for ( i = 1; i< sizeof(setNodeTbl)/sizeof(setNodeTbl[0]); i++ ) {
+		setNodeTbl[i].next = SET_NODE_FREE_LIST;
+		SET_NODE_FREE_LIST = i;
+	}
+
+	setNodeAvail = i - 1;
+#endif
 
 	/* Start receiver */
 #if defined(USE_PTHREADS) || defined(USE_EPICS)

@@ -1,5 +1,21 @@
 2010-03-21 (T.S.)
 
+	* src/fc_recv.c:
+	 o implemented support for 'blob sets' (THIS FEATURE REQUIRES PTHREADS)
+	   which allows a single thread to block for arrival of a set of blobs.
+
+	 o BUGFIX: fixed a few places where a negative errno status was passed
+	   to FCOM_ERR_SYS(errno). This macro expects a positive error status.
+
+	 o added new (internal) routine to compute condvar timeouts. This now
+	   uses clock_gettime() if available (testing _POSIX_TIMERS macro) and
+	   falls back on gettimeofday() otherwise.
+
+	 o added fcomDumpBlob() (factored most code out of fcomDumpIDStats() and
+	   made the latter a wrapper around fcomDumpBlob()).
+
+2010-03-21 (T.S.)
+
 	* src/xdr_swpP.h: recognize __ppc__ (OSX). Added check and #error
 	if neither __LITTLE_ENDIAN__ nor __BIG_ENDIAN__ is defined and
 	architecture is not explicitly recognized.

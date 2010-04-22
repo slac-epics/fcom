@@ -8,10 +8,10 @@ include $(TOP)/configure/CONFIG
 # Build the IOC support library
 
 LIBRARY_IOC       += fcom
-PROD_Linux  += fcomrtst
-PROD_Linux  += fcomxtst
-PROD_Linux  += fcomitst
-PROD_Linux  += fcget
+PROD_HOST   += fcomrtst
+PROD_HOST   += fcomxtst
+PROD_HOST   += fcomitst
+PROD_HOST   += fcget
 PROD_IOC    += prototst
 PROD_IOC    += fcometst
 

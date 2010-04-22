@@ -1,4 +1,4 @@
-/* $Id: fcom_api.h,v 1.7 2010/03/19 19:28:14 strauman Exp $ */
+/* $Id: fcom_api.h,v 1.8 2010/04/22 01:55:09 strauman Exp $ */
 #ifndef FCOM_API_HEADER_H
 #define FCOM_API_HEADER_H
 
@@ -480,9 +480,9 @@ fcomGetBlob(FcomID id, FcomBlobRef *pp_blob, uint32_t timeout_ms);
 int
 fcomReleaseBlob(FcomBlobRef *pp_blob);
 
+/** BLOB SETS ********************************************************/
+
 /*
- * BLOB SETS
- *
  * Sets of blobs allow an application to block until
  * either any or all of the listed blobs arrive.
  */

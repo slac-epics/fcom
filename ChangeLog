@@ -1,5 +1,10 @@
 2010-03-21 (T.S.)
 
+	* icd/fcom_icd.tex, icd/fcom_api.h, icd/fcom_icd.pdf: Updated
+   documentation ( adding new 'set' feature and fcomDumpBlob() ).
+
+2010-03-21 (T.S.)
+
 	* src/fcget.c: Accept multiple IDs on command line and use a blob set
 	if the user gave more than one.
 	Replaced call to fcomDumpIDStats() by fcomDumpBlob().

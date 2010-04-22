@@ -1,4 +1,4 @@
-/* $Id: fcom_api.h,v 1.8 2010/04/22 01:55:09 strauman Exp $ */
+/* $Id: fcom_api.h,v 1.9 2010/04/22 04:26:22 strauman Exp $ */
 #ifndef FCOM_API_HEADER_H
 #define FCOM_API_HEADER_H
 
@@ -75,7 +75,6 @@ typedef uint32_t FcomGID;
 
 #define FCOM_SID_MIN       8
 #define FCOM_SID_MAX   65535    /* power of two - 1 */
-
 #define FCOM_SID_ANY       0
 
 /* 
@@ -97,10 +96,7 @@ typedef uint32_t FcomGID;
  * change.
  */
 #define FCOM_MAKE_ID(gid,sid)   \
-    ( ((FCOM_PROTO_MAJ)<<28)    \
-      | ((gid)<<16)             \
-      | (sid)                   \
-    )
+    ( ((FCOM_PROTO_MAJ)<<28) | ((gid)<<16) | (sid) ) 
 
 
 /*
@@ -480,11 +476,12 @@ fcomGetBlob(FcomID id, FcomBlobRef *pp_blob, uint32_t timeout_ms);
 int
 fcomReleaseBlob(FcomBlobRef *pp_blob);
 
+
 /** BLOB SETS ********************************************************/
 
 /*
  * Sets of blobs allow an application to block until
- * either any or all of the listed blobs arrive.
+ * either any or all of the member blobs arrive.
  */
 
 typedef uint32_t FcomBlobSetMask;
@@ -492,21 +489,20 @@ typedef uint32_t FcomBlobSetMask;
 /* Opaque type; for FCOM internal use only */
 typedef struct FcomBlobSetHdr  *FcomBlobSetHdrRef;
 
-typedef struct FcomBlobSetMemb *FcomBlobSetMembRef;
-
 typedef struct FcomBlobSetMemb {
-	FcomID			idnt;
-	FcomBlobRef		blob;
-	FcomBlobSetHdrRef	head; /* for INTERNAL USE ONLY */
-	FcomBlobSetMembRef      next; /* for INTERNAL USE ONLY */
-} FcomBlobSetMemb;
+	FcomID                   idnt;
+	FcomBlobRef              blob;
+	FcomBlobSetHdrRef	     head; /* for INTERNAL USE ONLY */
+	struct FcomBlobSetMemb  *next; /* for INTERNAL USE ONLY */
+} FcomBlobSetMemb, *FcomBlobSetMembRef;
 
 typedef struct FcomBlobSet_ {
 	unsigned            nmemb;
 	FcomBlobSetMemb     memb[];
 } FcomBlobSet, *FcomBlobSetRef;
 
-/* Allocate a set of blobs. You must pass a list of IDs and will obtain
+/*
+ * Allocate a set of blobs. You must pass a list of IDs and will obtain
  * a set with all memb[i].blob references == NULL.
  * All IDs must previously have been subscribed and none of them
  * can be unsubscribed (i.e. the nest count cannot drop to zero)
@@ -526,14 +522,16 @@ typedef struct FcomBlobSet_ {
 int
 fcomAllocBlobSet(FcomID member_id[], unsigned num_members, FcomBlobSetRef *pp_set);
 
-/* Destroy a blob set. Any remaining (non-NULL) blob references memb[i].blob are
- * automatically released.
+/*
+ * Destroy a blob set. Any remaining (non-NULL) blob references 
+ * p_set->memb[i].blob are automatically released.
  *
  * RETURNS: zero on success, nonzero (status) on error.
  */
 int
 fcomFreeBlobSet(FcomBlobSetRef p_set);
 
+
 /*
  * Wait for a set of blobs to arrive.
  * 
@@ -568,18 +566,39 @@ fcomFreeBlobSet(FcomBlobSetRef p_set);
 #define FCOM_SET_WAIT_ALL	1
 
 int
-fcomGetBlobSet(FcomBlobSetRef p_set, FcomBlobSetMask *p_res,  FcomBlobSetMask waitfor, int flags, uint32_t timeout_ms);
+fcomGetBlobSet(
+    FcomBlobSetRef p_set,
+    FcomBlobSetMask *p_res,
+    FcomBlobSetMask waitfor,
+    int flags,
+    uint32_t timeout_ms
+);
 
 
 /** STATISTICS *******************************************************/
 
 /*
- * Dump statistics to a FILE. If a NULL
- * file pointer is passed then 'stdout'
- * is used.
+ * Dump statistics to a FILE. If a NULL  file pointer is passed then
+ * 'stdout' is used.
  */
 void
 fcomDumpStats(FILE *f);
+
+/*
+ * Dump statistics and data associated with a ID to 'f' (stdout if
+ * NULL). If 'level' is nonzero then more verbose information is
+ * printed (including payload data).
+ *
+ * RETURNS: Number of characters printed or (negative) error status.
+ */
+int
+fcomDumpIDStats(FcomID idnt, int level, FILE *f);
+
+/*
+ * Like fcomDumpIDStats but dump info about a given blob.
+ */
+int
+fcomDumpBlob(FcomBlobRef blob, int level, FILE *f);
 
 /*
  * Obtain statistics information.
@@ -601,9 +620,6 @@ fcomDumpStats(FILE *f);
 int
 fcomGetStats(int n_keys, uint32_t key_arr[], uint64_t value_arr[]);
 
-#define FCOM_RX_32_STAT(n) ((FCOM_PROTO_MAJ_1<<28)|(1<<24)|((n)<<16))
-#define FCOM_TX_32_STAT(n) ((FCOM_PROTO_MAJ_1<<28)|(2<<24)|((n)<<16))
-
 /* Test if a given key gives 32 or 64-bit values           */
 #define FCOM_STAT_IS_32(key)   (0 == ((key) & (4<<24)))
 #define FCOM_STAT_IS_64(key)   (0 != ((key) & (4<<24)))
@@ -615,6 +631,9 @@ fcomGetStats(int n_keys, uint32_t key_arr[], uint64_t value_arr[]);
 #define FCOM_STAT_KIND(key)    ((key)&0xffff)
 
 
+#define FCOM_RX_32_STAT(n) ((FCOM_PROTO_MAJ_1<<28)|(1<<24)|((n)<<16))
+#define FCOM_TX_32_STAT(n) ((FCOM_PROTO_MAJ_1<<28)|(2<<24)|((n)<<16))
+
 /* Keys for RX statistics         */
 
 /* Number of blobs received                                */
@@ -657,24 +676,6 @@ fcomGetStats(int n_keys, uint32_t key_arr[], uint64_t value_arr[]);
 #define FCOM_STAT_TX_NUM_MESGS_SENT       FCOM_TX_32_STAT(2)
 /* Number of failed attempts to send (TCP/IP stack errors) */
 #define FCOM_STAT_TX_ERR_SEND             FCOM_TX_32_STAT(3)
-
-/* Dump statistics and contents of a given ID to 'f'
- * (stdout if NULL).
- *
- * If 'level' is nonzero then more verbose information is
- * printed (including payload data).
- *
- * RETURNS: Number of characters printed or (negative) error status.
- */
-int
-fcomDumpIDStats(FcomID idnt, int level, FILE *f);
-
-/* Like fcomDumpIDStats but dump info about a given blob
- *
- * RETURNS: Number of characters printed or (negative) error status.
- */
-int
-fcomDumpBlob(FcomBlobRef blob, int level, FILE *f);
 
 
 /** EXAMPLES *********************************************************/
@@ -836,7 +837,54 @@ fcomDumpBlob(FcomBlobRef blob, int level, FILE *f);
  *      fcomUnsubscribe( XYZ_TEMP_1 );
  *
 
- * D] Get statistics; find out how many available buffers of
+ * D] Block for multiple blobs to update (using sets):
+ *
+ *     FcomID          member_id[] = { ID1, ID2, ID3 };
+ *     FcomBlobSetMask waitfor, got;
+ *     FcomBlobSetRef  the_set;
+ *
+ *     Build a set:
+ *     
+ *       fcomAllocBlobSet( member_id, 3, &the_set );
+ * 
+ *     Build a 'waitfor' mask containing all our members:
+ *
+ *       waitfor = (1<<0) | (1<<1) | (1<<2) ; 
+ *
+ *     Block for all members to arrive (timeout 1000 ms):
+ *
+ *       fcomGetBlobSet( the_set, &got, waitfor, FCOM_SET_WAIT_ALL, 1000 );
+ *
+ *     Dump all blobs:
+ * 
+ *       for ( i=0; i<the_set->nmemb; i++ ) {
+ *          fcomDumpBlob( the_set->memb[i].blob, 0, 0 );
+ *       }   
+ *
+ *     Now wait for any of ID0, ID2 to update:
+ *
+ *       waitfor = (1<<0) | (1<<2);
+ *       fcomGetBlobSet( the_set, &got, waitfor, FCOM_SET_WAIT_ANY, 1000 );
+ *
+ *     At this point, member #1 has not changed (bit not set in waitfor)
+ *     but any of #0, #2 could have (the ones that changed have their
+ *     bit set in 'got').
+ *
+ *     Again we can dump:
+ *      
+ *       for ( i=0; i<3; i++ )
+ *         fcomDumpBlob( the_set->memb[i].blob, 0, 0 );
+ *
+ *     Dump only changed/updated blobs:
+ *
+ *       for ( i=0; got; i++, got>>=1 )
+ *         if ( got & 1 ) fcomDumpBlob( the_set->memb[i].blob, 0, 0);
+ *    
+ *     Destroy set and release all contained blobs.
+ * 
+ *       fcomFreeBlobSet( the_set );
+
+ * E] Get statistics; find out how many available buffers of
  *    size >= 512 bytes there are:
  *
  *    Obtain number of different buffer kinds:

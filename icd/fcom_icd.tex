@@ -19,6 +19,8 @@
 \newcommand{\Group}{Group}
 \newcommand{\signal}{signal}
 \newcommand{\Signal}{Signal}
+\newcommand{\set}{set}
+\newcommand{\Set}{Set}
 
 \newcommand{\cstl}[1]{{\lstinline+#1+}}
 
@@ -55,8 +57,12 @@ and other applications.%
                                           bits from a blob's status word.}
 \addchangehistory{003}{March 19, 2010}{All}{Added fcomDumpIDStats() diagnostic
                                             entry point.}
+\addchangehistory{004}{April 21, 2010}{All}{Added fcomDumpBlob() diagnostics entry point.
+                                           Added fcomAllocBlobSet(), fcomGetBlobSet(),
+                                           fcomFreeBlobSet.
+                                           }
 
-\currentrevision{2}
+\currentrevision{4}
 
 %
 \keywords{\fcom}
@@ -106,8 +112,12 @@ The following terms are used throughout this document
    either read from
    a \signal{} or destined to be written to a \signal{}.
 \item[\Group]
-   A {\em \group} is a set of \blob{}s which is bundled
+   A {\em \group} is a compound of \blob{}s which is bundled
    together for transmission.
+\item[\Set]
+   A {\em \set} of \blob{}s is an object comprising multiple
+   \blob{}s bundled for reception. A single thread can block
+   until all requested members of the \set{} update.
 \item[Nodes and Endpoints]
    A {\em node} is defined as a computer
    system which is ``participating'' in \fcom{}
@@ -460,6 +470,16 @@ data from the cache.
                     would subscribe to the former whereas the alternate
                     application would subscribe to the latter ID.}
 
+	\subsubsection{Sets}
+                    The implementation may define {\em blob sets}\/
+                    which consist of a set of IDs. An application may
+                    retrieve a \set{} in a single operation. \Set{}s allow
+                    an application to block for the arrival of new data
+                    for all members of the \set{} (or a subset).
+                    Such a feature could be very useful if a single
+                    thread needs multiple \blob{}s before processing
+                    the data contained in them.
+
 	\subsubsection{Configuration}
 		Applications need to refer to particular \blob{}s using
         their IDs. Furthermore, \fcom{} needs to determine
@@ -680,6 +700,136 @@ synchronization feature%
   fcomReleaseBlob( &before );
   fromReleaseBlob( &after );
       \end{verbatim}
+    \subsubsection{Sets}
+      The features and entry points described in this subsection are {\em optional},
+      i.e., they need to be enabled at compile-time and might require the availability
+      of certain system services.
+
+      \Set{}s are very useful if a single thread needs to obtain fresh
+      data for a number of IDs. Without \set{}s the application either must
+      spawn multiple threads and let each one block for fresh data
+      with a synchronous \cstl{fcomGetBlob()} and finally synchronize
+      with a 'master-thread' or it must delay until it can be assumed
+      that fresh data have arrived and then use asynchronous \cstl{fcomGetBlob()}s
+      in order to read the data.
+
+      Using \set{}s, the application first builds a \set, then blocks
+      for the \set{} to ``fill'', i.e., for data to arrive for all member IDs
+      and then resumes execution with the \set{} now being populated with
+      new \blob{}s.
+
+      \begin{verbatim}
+FcomID         member_id[] = { ID1, ID2 };
+FcomBlobSetRef theSet;
+fcomAllocBlobSet( member_id, 2, &theSet );
+      \end{verbatim}
+      creates a \set{} with two members and returns a handle in \cstl{theSet}.
+      Note that all IDs must already be subscribed (but it is {\em not} necessary for
+      them to be subscribed for synchronous operation).
+
+      The call returns zero on success and nonzero if an error occurs (returning
+      a standard \fcom{} error code). The \set{} handle is invalid if the call
+      fails.
+
+      Note that an ID cannot be completely unsubscribed (i.e., the ``nest-count''
+      cannot drop to zero) while being member of any \set.
+
+      \cstl{fcomGetBlobSet()} suspends execution of the calling thread until
+      either the desired members update or a timeout occurs, whichever happens
+      first.
+
+      \begin{verbatim}
+FcomBlobSetMask got;
+FcomBlobSetMask waitfor = (1<<0) | (1<<1);
+int             flags   = FCOM_SET_WAIT_ALL;
+fcomGetBlobSet( theSet, &got, waitfor, flags, timeout_ms);
+      \end{verbatim}
+
+      When the routine returns (successfully) then the \set{} is populated with new \blob{}s
+      which can be accessed via the \set{} data structure:
+
+      \begin{verbatim}
+typedef struct FcomBlobSetMemb {
+        FcomID                  idnt;
+        FcomBlobRef             blob;
+        FcomBlobSetHdrRef       head; /* for INTERNAL USE ONLY */
+        FcomBlobSetMembRef      next; /* for INTERNAL USE ONLY */
+} FcomBlobSetMemb;
+ 
+typedef struct FcomBlobSet_ {
+        unsigned            nmemb;
+        FcomBlobSetMemb     memb[];
+} FcomBlobSet, *FcomBlobSetRef;
+      \end{verbatim}
+
+      The members of the \set{} preserve the same order that the ``member\_id'' array
+      had when the \set{} was created. E.g., ID2 has member index 1 and thus the
+      associated blob could be accessed as
+      \begin{verbatim}
+theSet->memb[1].blob
+      \end{verbatim}
+      (the \cstl{theSet->nmemb} field stores the number of members of the set which would
+      be 2 in our example).
+
+      The blocking behavior is determined by the \cstl{waitfor} and \cstl{flags} 
+      (and the \cstl{timeout_ms}) arguments. The \cstl{waitfor} argument (and also the value
+      returned in \cstl{got}) is a {\em bitmask} with each bit \cstl{1<<i} 
+      representing a member \cstl{i}.
+     
+      \begin{itemize}
+        \item If \cstl{flags} has \cstl{FCOM\_SET\_WAIT\_ALL} set then the call
+              only returns when {\em all} members with their bit set in \cstl{waitfor}
+              have updated.
+        \item If \cstl{flags} has \cstl{FCOM\_SET\_WAIT\_ALL} clear
+              (\cstl{FCOM\_SET\_WAIT\_ANY}) then the call returns as soon as {\em at least
+              one} member with its bit set in \cstl{waitfor} has updated.
+        \item A bitset flagging all updated members is returned to the \cstl{got}
+              variable. If this returned value is of no interest then a NULL pointer 
+              may be passed.
+        \item \Blob{}s ``attached'' to the \set{} logically ``belong'' to the \set,
+              i.e., they are released automatically either when members update
+              as a result of passing the same \set{} again to \cstl{fcomGetBlobSet()}
+              or when destroying the \set{} (\cstl{fcomFreeBlobSet()}).
+
+              The application may ``take over'' a \blob{} reference by setting
+              the \cstl{blob} field to NULL but it is then responsible for releasing
+              the \blob.
+\begin{verbatim}
+FcomBlobRef my_blob  = theSet->memb[1].blob;
+theSet->memb[1].blob = 0;
+fcomFreeBlobSet( theSet ); /* member # 0 is released automatically */
+fcomReleaseBlob( &my_blob );
+\end{verbatim}
+        \item Only members with their bit set in \cstl{waitfor} will have their
+              \cstl{blob} field updated.
+        \item If the routine times out then still a subset of the requested members
+              might have updated (and this would be reflected in the returned \cstl{got}
+              variable).
+        \item \Set{}s are ``single-threaded'' objects, i.e., it is a programming error
+              to let multiple threads pass the same \set{} to \cstl{fcomGetBlobSet()}
+              simultaneously.
+        \item It is legal to re-use an existing \set{}, i.e., to repeatedly pass it to
+              \cstl{fcomGetBlobSet()} --- ``attached'' blobs are manged automatically.
+        \item \Blob{} references ``attached'' to a \set{} only change when the \set{}
+              is again passed to \cstl{fcomGetBlobSet()} (or destroyed).
+      \end{itemize}
+
+      A \set{} is destroyed and all associated resources released with
+      \begin{verbatim}
+fcomFreeBlobSet( theSet );
+      \end{verbatim}
+      and in particular are all ``attached'' \blob{}s released by this routine.
+
+    \subsubsection{Sets vs. Synchronous Get Operations}
+      Both, \set{}s and synchronous \cstl{fcomGetBlob()} operations synchronize
+      the execution of the calling thread with the arrival of new data. However,
+      they serve different purposes:
+      \begin{itemize}
+        \item \Set{}s are optimal if a single thread wants to wait for multiple \blob{}s.
+        \item Synchronous \cstl{fcomGetBlob()}s are used when multiple threads simultaneously
+              need to wait for a single \blob.
+      \end{itemize}
+
     \subsubsection{Transmission}
       An endpoint who wishes to transmit data must first
       allocate a group:

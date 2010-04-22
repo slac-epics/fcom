@@ -1,4 +1,4 @@
-/* $Id: fcometst.c,v 1.2 2010/01/13 20:45:51 strauman Exp $ */
+/* $Id: fcometst.c,v 1.3 2010/03/19 19:31:02 strauman Exp $ */
 
 /* Echo a simple FCOM blob (for measuring protocol-overhead in a round-trip
  * situation)
@@ -10,6 +10,7 @@
 #include <inttypes.h>
 #include <getopt.h>
 #include <unistd.h>
+#include <stdlib.h>
 
 #include <fcom_api.h>
 #include <fcomP.h>
@@ -97,7 +98,10 @@ uint32_t       usdel;
 
 int fcom_etst_init()
 {
-	return fcomInit("239.255.0.0",100);
+char *prefix = getenv("FCOM_MC_PREFIX");
+	if ( !prefix )
+		prefix = "239.255.0.0";
+	return fcomInit(prefix, 100);
 }
 
 
@@ -173,7 +177,7 @@ GETOPTSTAT_DECL;
 	if ( getn(argv[0], argv[optind], &d2) )
 		return 1;
 	
-	st = fcomInit("239.255.0.0", 100);
+	st = fcom_etst_init();
 
 	if ( st ) {
 		fprintf(stderr,"fcomInit() failed: %s\n", fcomStrerror(st));

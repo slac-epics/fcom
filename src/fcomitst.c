@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: fcomitst.c,v 1.1 2010/03/18 18:21:59 strauman Exp $ */
 #include <termios.h>
 #include <unistd.h>
 #include <stdio.h>
@@ -290,10 +290,14 @@ int
 main(int argc, char **argv)
 {
 int        ch;
-const char *prefix = "239.255.0.0";
+char       *prefix;
 uint64_t   v;
 int        i;
 FcomID     id;
+
+	if ( ! (prefix = getenv("FCOM_MC_PREFIX")) ) {
+		prefix = "239.255.0.0";
+	}
 
 	while ( (ch = getopt(argc, argv, "hp:")) >= 0 ) {
 		switch ( ch ) {

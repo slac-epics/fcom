@@ -1,5 +1,13 @@
 2010-03-21 (T.S.)
 
+	* src/fcomxtst.c, src/fcomrtst.c, src/fcometst.c, src/fcomitst.c:
+	Check FCOM_MC_PREFIX environment variable and pass to fcomInit() if set.
+
+	* src/fcomxtst.c: print message indicating that there might be syntax errors
+	if scanning a line of input file fails.
+
+2010-03-21 (T.S.)
+
 	* src/fcomrtst.c: Include <unistd.h> for getopts on OSX.
 
 2010-03-21 (T.S.)

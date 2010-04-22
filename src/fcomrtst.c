@@ -1,4 +1,4 @@
-/* $Id: fcomrtst.c,v 1.4 2010/03/18 18:21:47 strauman Exp $ */
+/* $Id: fcomrtst.c,v 1.5 2010/04/22 01:57:58 strauman Exp $ */
 
 /* Test program for FCOM receiver
  *
@@ -53,9 +53,13 @@ int         got;
 struct timespec touts;
 #endif
 int         have_sync = FCOM_SYNC_GET;
-char        *pref = "239.255.0.0:0";
+char        *pref;
 FILE        *nif  = 0;
 FILE        *nof  = 0;
+
+	if ( ! (pref = getenv("FCOM_MC_PREFIX")) ) {
+		pref = "239.255.0.0:0";
+	}
 
 	while ( (i=getopt(argc, argv, "at:p:i:o:")) > 0 ) {
 		switch (i) {

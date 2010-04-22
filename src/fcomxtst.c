@@ -1,4 +1,4 @@
-/* $Id: fcomxtst.c,v 1.1.1.1 2009/07/28 17:57:06 strauman Exp $ */
+/* $Id: fcomxtst.c,v 1.2 2009/07/28 19:46:56 strauman Exp $ */
 
 /* Test program for FCOM transmitter
  *
@@ -48,8 +48,12 @@ FcomBlobRef tmp;
 int         err,nmb;
 FILE        *infile = stdin;
 FcomGroup   g = 0;
+char        *prefix;
 
-	if ( (st = fcomInit("239.255.0.0", 0)) ) {
+	if ( ! (prefix = getenv("FCOM_MC_PREFIX")) )
+		prefix = "239.255.0.0";
+
+	if ( (st = fcomInit(prefix, 0)) ) {
 		fprintf(stderr, "fcomInit() failed: %s\n", fcomStrerror(st));
 		goto bail;
 	}
@@ -72,17 +76,21 @@ FcomGroup   g = 0;
 			}
 		}
 
-
 		if ( (st = fcomAddGroup(g, pb)) ) {
 				fprintf(stderr,"fcomAddGroup() failed: %s\n", fcomStrerror(st));
 				goto bail;
 		} else {
 			nmb++;
 		}
+
 		/* switch buffers */
 		tmp = pbl;
 		pbl = pb;
 		pb  = tmp;
+	}
+
+	if ( err < 0 ) {
+		fprintf(stderr,"get_blob_from_file failed (check file syntax)\n");
 	}
 
 	wrapgrp(g, pbl, nmb);

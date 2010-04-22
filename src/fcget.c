@@ -1,4 +1,4 @@
-/*$Id: fcget.c,v 1.3 2010/03/22 19:42:07 strauman Exp $*/
+/*$Id: fcget.c,v 1.4 2010/04/22 02:16:31 strauman Exp $*/
 
 /* Get FCOM Blob and dump to stdout */
 
@@ -19,16 +19,18 @@
 static void
 usage(char *nm)
 {
-	fprintf(stderr,"Usage: %s [-ahv] [-t <timeout_ms>] [-p <fcom_mc_prefix>] [-i <fcom_mc_IF>] blob_id {blob_id}\n", nm);
+	fprintf(stderr,"Usage: %s [-ahvs] [-t <timeout_ms>] [-p <fcom_mc_prefix>] [-i <fcom_mc_IF>] [-b bufs] blob_id {blob_id}\n", nm);
 	fprintf(stderr,"  Options:\n");
 	fprintf(stderr,"       -h print this message\n");
 	fprintf(stderr,"       -a enforce asynchronous 'get'\n");
+	fprintf(stderr,"       -b configure number of buffers (if you use many IDs); default=10\n");
 	fprintf(stderr,"       -t <timeout_ms> to wait for new data (or delay\n");
 	fprintf(stderr,"          after subscription until attempting async get).\n");
 	fprintf(stderr,"          Defaults to 1000.\n");
 	fprintf(stderr,"       -p <fcom_mc_prefix>. Multicast prefix for FCOM\n");
 	fprintf(stderr,"       -i <fcom_mc_IF>. IF (dot-address) on which to listen for FCOM\n");
 	fprintf(stderr,"       -v verbose mode.\n");
+	fprintf(stderr,"       -s dump statistics before terminating.\n");
 	fprintf(stderr,"  Environment:\n");
 	fprintf(stderr,"       FCOM_MC_PREFIX defines multicast prefix (overridden by -p)\n");
 	fprintf(stderr,"       FCOM_MC_IFADDR defines address of IF to be listened on\n");
@@ -53,9 +55,11 @@ FcomBlobSetRef  set     = 0;
 FcomID          *idnts  = 0;
 int             nids    = 0;
 int             nsubs   = 0;
+int             stats   = 0;
+int             bufs    = 10;
 int             i;
 
-	while ( (ch = getopt(argc, argv, "vht:ap:")) >= 0 ) {
+	while ( (ch = getopt(argc, argv, "ab:hp:st:v")) >= 0 ) {
 		switch (ch) {
 			case 'h':
 				rval = 0;
@@ -65,6 +69,18 @@ int             i;
 
 			case 'a':
 				async = 1;
+			break;
+
+			case 'b':
+				if ( 1 != sscanf(optarg, "%i", &bufs) || bufs < 1) {
+					fprintf(stderr,"Invalid arg to -b: must be positive # of buffers\n");
+					usage(argv[0]);
+					return 1;
+				}
+			break;
+
+			case 's':
+				stats = 1;
 			break;
 
 			case 't':
@@ -132,7 +148,7 @@ int             i;
 	}
 
 	fcom_silent_mode = 1;
-	st = fcomInit( prefix, 10 );
+	st = fcomInit( prefix, bufs );
 
 	if ( st ) {
 		fprintf(stderr,"Unable to initialize FCOM: %s\n", fcomStrerror(st));
@@ -170,7 +186,8 @@ int             i;
 		st = fcomGetBlobSet( set, 0, (1<<nids) - 1, FCOM_SET_WAIT_ALL, tout_ms );
 		if ( st ) {
 			fprintf(stderr,"fcomGetBlobSet failed: %s\n", fcomStrerror(st));
-			goto bail;
+			if ( FCOM_ERR_TIMEDOUT != st )
+				goto bail;
 		}
 
 		for ( i=0; i<nids; i++ ) {
@@ -186,7 +203,7 @@ int             i;
 			}
 		}
 
-		st = fcomGetBlob( idnts[0], &blob, tout_ms );
+		st = fcomGetBlob( idnts[0], &blob, async ? 0 : tout_ms );
 		if ( st ) {
 			fprintf(stderr,"fcomGetBlob(%sSYNCH) failed: %s\n", async ? "A":"", fcomStrerror(st));
 			goto bail;
@@ -202,6 +219,10 @@ int             i;
 	rval = 0;
 
 bail:
+
+	if ( stats )
+		fcomDumpStats(stdout);
+
 	if ( set ) {
 		st = fcomFreeBlobSet( set );
 		if ( st )

@@ -1,3 +1,25 @@
+2010-03-22 (T.S.)
+
+	* src/fcget.c:
+	 o New '-b <buffer_count>' option to set/increase # of buffers
+	   (in case the user passes many IDs).
+	 o New '-s' option to dump statistics before exiting.
+	 o BUGFIX: If this is an asynchronous 'get' then timeout arg
+	           to fcomGetBlob() must be zero.
+	
+2010-03-22 (T.S.)
+
+	* src/fc_recvr.c: Added some statistics for sets. More paranoia
+	checking of arguments (let fcomFreeBlobSet accept and ignore
+	NULL set pointer; let fcomAllocBlobSet() NULL the returned 
+	set handle on failure.
+
+2010-03-22 (T.S.)
+
+	* src/Makefile, src/fc_recvr.c: 'set' support is now a compile-time
+	option. Define SUPPORT_SETS to enable it (added -DSUPPORT_SETS to
+	Makefile).
+
 2010-03-21 (T.S.)
 
 	* icd/fcom_icd.tex, icd/fcom_api.h, icd/fcom_icd.pdf: Updated

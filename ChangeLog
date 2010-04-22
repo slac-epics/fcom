@@ -1,5 +1,11 @@
 2010-03-21 (T.S.)
 
+	* src/xdr_swpP.h: recognize __ppc__ (OSX). Added check and #error
+	if neither __LITTLE_ENDIAN__ nor __BIG_ENDIAN__ is defined and
+	architecture is not explicitly recognized.
+
+2010-03-21 (T.S.)
+
 	* src/fcomxtst.c, src/fcomrtst.c, src/fcometst.c, src/fcomitst.c:
 	Check FCOM_MC_PREFIX environment variable and pass to fcomInit() if set.
 

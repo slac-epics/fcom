@@ -1,4 +1,4 @@
-/* $Id: xdr_swpP.h,v 1.1.1.1 2009/07/28 17:57:07 strauman Exp $ */
+/* $Id: xdr_swpP.h,v 1.2 2009/07/28 23:00:14 strauman Exp $ */
 #ifndef XDR_BYTESWAP_PRIVATE_H
 #define XDR_BYTESWAP_PRIVATE_H
 
@@ -13,7 +13,7 @@
 
 #if ! defined(__i386__) && !defined(__x86_64__) \
     && !defined(__m68k__) \
-    && !defined(__PPC__)
+    && !defined(__PPC__) && !defined(__ppc__)
 #error "Unknown CPU; add to test if it uses IEEE floating-point format"
 /* Only CPUs using IEEE floating point format supported so far;
  * Also, we assume floats and doubles are stored with native
@@ -27,6 +27,8 @@
         #define __LITTLE_ENDIAN__
     #elif defined(__m68k__)
         #define __BIG_ENDIAN__
+    #else
+        #error "neither __LITTLE_ENDIAN__ nor __BIG_ENDIAN__ defined and CPU unknown"
     #endif
 #endif
 

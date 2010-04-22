@@ -1,5 +1,9 @@
 2010-03-21 (T.S.)
 
+	* src/fcomrtst.c: Include <unistd.h> for getopts on OSX.
+
+2010-03-21 (T.S.)
+
 	* src/fc_strerror.c: Added description string for new error code FCOM_ERR_ID_IN_USE.
 
 2010-03-21 (T.S.)

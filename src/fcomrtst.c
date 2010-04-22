@@ -1,4 +1,4 @@
-/* $Id: fcomrtst.c,v 1.3 2009/07/28 22:59:38 strauman Exp $ */
+/* $Id: fcomrtst.c,v 1.4 2010/03/18 18:21:47 strauman Exp $ */
 
 /* Test program for FCOM receiver
  *
@@ -21,6 +21,7 @@
 #include <stdio.h>
 #include <inttypes.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <string.h>
 #include <sys/errno.h>
 #include <time.h>

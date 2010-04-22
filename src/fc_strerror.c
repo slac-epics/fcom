@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: fc_strerror.c,v 1.1.1.1 2009/07/28 17:57:07 strauman Exp $ */
 
 /* Helper to convert FCOM error codes into ASCII strings
  * 
@@ -26,6 +26,7 @@ static const char *errstrs[]={
 	"no data received (FCOM)",
 	"trying to use unsupported FCOM feature",
 	"FCOM timeout",
+	"ID still in use",
 };
 
 

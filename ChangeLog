@@ -1,5 +1,9 @@
 2010-03-21 (T.S.)
 
+	* src/fc_strerror.c: Added description string for new error code FCOM_ERR_ID_IN_USE.
+
+2010-03-21 (T.S.)
+
 	* src/blobio.c: Added short description of file format to header.
 
 2010-03-21 (T.S.)

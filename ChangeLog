@@ -1,5 +1,9 @@
 2010-03-21 (T.S.)
 
+	* src/blobio.c: Added short description of file format to header.
+
+2010-03-21 (T.S.)
+
 	* icd/fcom_api.h:
 	 o include <inttypes.h> and define format string (FCOM_ID_FMT) for printing IDs.
 	 o added new error code FCOM_ERR_ID_IN_USE.

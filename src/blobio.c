@@ -1,7 +1,24 @@
-/* $Id: blobio.c,v 1.1.1.1 2009/07/28 17:57:07 strauman Exp $ */
+/* $Id: blobio.c,v 1.2 2009/07/28 19:46:55 strauman Exp $ */
 
 /* Read/write a ASCII file (stdin) defining a sequence of
  * blobs and convert to/from C-representation.
+ *
+ * FILE FORMAT:
+ *
+ * file:   { record } EF 0
+ *
+ * record:
+ *   ve <version>
+ *   id <fcom ID>
+ *   th <tstmpHi>
+ *   tl <tstmpLo>
+ *   st <status >
+ *   ty <type   > <count>
+ *      0: none, 1: float, 2: ddouble, 3: uint32, 4: int32, 5: int8
+ *   <element>
+ *   <element>
+ *   ...
+ *   ER 0
  *
  * Author: Till Straumann <strauman@slac.stanford.edu>, 2009.
  *

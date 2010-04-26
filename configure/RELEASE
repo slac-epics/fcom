@@ -46,7 +46,8 @@ BASE_MODULE_VERSION=base-R3-14-8-2-lcls6
 # the appropriate version dependencies
 # http://www-group.slac.stanford.edu/cdsoft/epics/swModules3.htm
 # ===============================================================
-UDPCOMM_MODULE_VERSION=udpComm-R1-1-0
+#UDPCOMM_MODULE_VERSION=strauman
+UDPCOMM_MODULE_VERSION=udpComm-R1-2-0
 
 # ============================================================
 # External Support

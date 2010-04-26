@@ -1,3 +1,9 @@
+fcom-R1-3-0:
+  Addition of new features:
+    * fcomDumpBlob() (dump blob contents and statistics to a FILE).
+    * Implementation of 'blob sets'. A 'set' is a collection of
+      IDs/blobs. A single thread can block execution until new
+      data for *all* requested IDs is available.
 fcom-R1-2-0:  Built against rtems 4.9.4 and EPICS BASE:
               base-R3-14-8-2-lcls6
 fcom-R1-1-0:

@@ -1,4 +1,9 @@
-2010-03-22 (T.S.)
+2010-04-26 (T.S.)
+
+	* ChangeLog: fixed bad dates.
+	* RELEASE fcom-R1-3-0 cut.
+
+2010-04-22 (T.S.)
 
 	* src/fcget.c:
 	 o New '-b <buffer_count>' option to set/increase # of buffers
@@ -7,31 +12,31 @@
 	 o BUGFIX: If this is an asynchronous 'get' then timeout arg
 	           to fcomGetBlob() must be zero.
 	
-2010-03-22 (T.S.)
+2010-04-22 (T.S.)
 
 	* src/fc_recvr.c: Added some statistics for sets. More paranoia
 	checking of arguments (let fcomFreeBlobSet accept and ignore
 	NULL set pointer; let fcomAllocBlobSet() NULL the returned 
 	set handle on failure.
 
-2010-03-22 (T.S.)
+2010-04-22 (T.S.)
 
 	* src/Makefile, src/fc_recvr.c: 'set' support is now a compile-time
 	option. Define SUPPORT_SETS to enable it (added -DSUPPORT_SETS to
 	Makefile).
 
-2010-03-21 (T.S.)
+2010-04-21 (T.S.)
 
 	* icd/fcom_icd.tex, icd/fcom_api.h, icd/fcom_icd.pdf: Updated
    documentation ( adding new 'set' feature and fcomDumpBlob() ).
 
-2010-03-21 (T.S.)
+2010-04-21 (T.S.)
 
 	* src/fcget.c: Accept multiple IDs on command line and use a blob set
 	if the user gave more than one.
 	Replaced call to fcomDumpIDStats() by fcomDumpBlob().
 
-2010-03-21 (T.S.)
+2010-04-21 (T.S.)
 
 	* src/fc_recv.c:
 	 o implemented support for 'blob sets' (THIS FEATURE REQUIRES PTHREADS)
@@ -47,13 +52,13 @@
 	 o added fcomDumpBlob() (factored most code out of fcomDumpIDStats() and
 	   made the latter a wrapper around fcomDumpBlob()).
 
-2010-03-21 (T.S.)
+2010-04-21 (T.S.)
 
 	* src/xdr_swpP.h: recognize __ppc__ (OSX). Added check and #error
 	if neither __LITTLE_ENDIAN__ nor __BIG_ENDIAN__ is defined and
 	architecture is not explicitly recognized.
 
-2010-03-21 (T.S.)
+2010-04-21 (T.S.)
 
 	* src/fcomxtst.c, src/fcomrtst.c, src/fcometst.c, src/fcomitst.c:
 	Check FCOM_MC_PREFIX environment variable and pass to fcomInit() if set.
@@ -61,19 +66,19 @@
 	* src/fcomxtst.c: print message indicating that there might be syntax errors
 	if scanning a line of input file fails.
 
-2010-03-21 (T.S.)
+2010-04-21 (T.S.)
 
 	* src/fcomrtst.c: Include <unistd.h> for getopts on OSX.
 
-2010-03-21 (T.S.)
+2010-04-21 (T.S.)
 
 	* src/fc_strerror.c: Added description string for new error code FCOM_ERR_ID_IN_USE.
 
-2010-03-21 (T.S.)
+2010-04-21 (T.S.)
 
 	* src/blobio.c: Added short description of file format to header.
 
-2010-03-21 (T.S.)
+2010-04-21 (T.S.)
 
 	* icd/fcom_api.h:
 	 o include <inttypes.h> and define format string (FCOM_ID_FMT) for printing IDs.
@@ -84,7 +89,7 @@
 	 o added API declaration of new 'blob set' feature which allows a single thread
 	   to block for arrival of a set of blobs.
 
-2010-03-21 (T.S.)
+2010-04-21 (T.S.)
 
 	* src/Makefile: made test programs PROD_HOST instead of PROD_Linux.
 

@@ -1,4 +1,4 @@
-/* $Id: fcom_api.h,v 1.9 2010/04/22 04:26:22 strauman Exp $ */
+/* $Id: fcom_api.h,v 1.10 2010/04/22 05:09:43 strauman Exp $ */
 #ifndef FCOM_API_HEADER_H
 #define FCOM_API_HEADER_H
 
@@ -518,6 +518,8 @@ typedef struct FcomBlobSet_ {
  *          simultaneously.
  *          It is also a programming error to free a set while a
  *          fcomGetBlobSet() operation is in progress.
+ *          The 'member_id[]' array is copied into the set and may
+ *          be reused or destroyed at the caller's discretion.
  */
 int
 fcomAllocBlobSet(FcomID member_id[], unsigned num_members, FcomBlobSetRef *pp_set);

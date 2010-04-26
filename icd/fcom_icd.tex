@@ -732,6 +732,10 @@ fcomAllocBlobSet( member_id, 2, &theSet );
       a standard \fcom{} error code). The \set{} handle is invalid if the call
       fails.
 
+      The \cstl{member_id} array argument to \cstl{fcomAllocBlobSet()} is
+      not accessed by \fcom{} anymore after the routine returns, i.e., it may
+      be reused or destroyed at the user's discretion.
+
       Note that an ID cannot be completely unsubscribed (i.e., the ``nest-count''
       cannot drop to zero) while being member of any \set.
 
@@ -819,7 +823,8 @@ fcomReleaseBlob( &my_blob );
       \begin{verbatim}
 fcomFreeBlobSet( theSet );
       \end{verbatim}
-      and in particular are all ``attached'' \blob{}s released by this routine.
+      and in particular are all ``attached'' \blob{}s released (as if
+	  \cstl{fcomReleaseBlob()} was executed) by this routine.
 
     \subsubsection{Sets vs. Synchronous Get Operations}
       Both, \set{}s and synchronous \cstl{fcomGetBlob()} operations synchronize

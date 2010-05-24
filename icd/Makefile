@@ -17,8 +17,17 @@ include $(TOP)/configure/RULES
 #----------------------------------------
 #  ADD RULES AFTER THIS LINE
 
-../%.pdf: ../%.tex fcom_api.h
-	cd ..; pdflatex $(<:../%=%); pdflatex $(<:../%=%)
+../%.pdf: ../%.tex ../fcom_api.h
+	if sha1sum --version > /dev/null ; then \
+	if [ ! -f $(@:%.pdf=%.cksum) ] ||  ! sha1sum --status -c $(@:%.pdf=%.cksum) ; then \
+		(cd ..; pdflatex $(@:../%.pdf=%.tex); pdflatex $(@:../%.pdf=%.tex)); \
+		sha1sum $@ $(@:%.pdf=%.tex) ../fcom_api.h > $(@:%.pdf=%.cksum); \
+	else \
+		touch $@ ;\
+	fi \
+	else \
+		echo "WARNING: 'sha1sum' not found -- unable to check if $@ is up-to-date" ; \
+	fi
 
 ifndef T_A
 # EPICS Makefile system quirk; they should use :: everywhere...

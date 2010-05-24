@@ -1,5 +1,11 @@
 2010-04-26 (T.S.)
 
+	* icd/Makefile, icd/fcom_icd.cksum: Use checksums instead
+	of file date to check if we need to remake the PDF file.
+	Otherwise, the order of a CVS checkout may trigger a rebuild...
+
+2010-04-26 (T.S.)
+
 	* ChangeLog: fixed bad dates.
 	* RELEASE fcom-R1-3-0 cut.
 

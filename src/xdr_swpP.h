@@ -1,4 +1,4 @@
-/* $Id: xdr_swpP.h,v 1.2 2009/07/28 23:00:14 strauman Exp $ */
+/* $Id: xdr_swpP.h,v 1.3 2010/04/22 02:08:27 strauman Exp $ */
 #ifndef XDR_BYTESWAP_PRIVATE_H
 #define XDR_BYTESWAP_PRIVATE_H
 
@@ -36,26 +36,24 @@
 #if defined(__BIG_ENDIAN__)
 #define SWAPU32(x) (x)
 #elif defined(__LITTLE_ENDIAN__)
-  #if defined(__i386__) || defined(__x86_64__)
-	#if defined(__GNUC__)
-		#if __GNUC__ > 3
-        #if defined(__i386__) && !defined(__pentium__)
-		#warning "x86 < pentium does NOT use bswap; must use -march=pentium to enable"
-		#endif
-			/* don't know when __builtin_swap32 appeared; NOTE: 
-             * for gcc to use the 'bswap' instruction you need
-			 * to say "-march=pentium"
-             */
-			#define SWAPU32(x) __builtin_bswap32(x)
-		#else
-			static __inline__ uint32_t swapu32(uint32_t x)
-			{
-				__asm__ volatile("bswap %0":"=r"(x):"0"(x));
-				return x;
-			}
-			#define SWAPU32(x) swapu32(x)
-		#endif
-	#endif
+  #if defined(__GNUC__)
+    #if 4 < __GNUC__ || ( 4 == __GNUC__ && 3 <= __GNUC_MINOR__ )
+      /* don't know when __builtin_swap32 appeared -- seems with gcc 4.3;
+       * NOTE: for gcc to use the 'bswap' instruction you need
+       * to say "-march=pentium"
+       */
+      #if defined(__i386__) && !defined(__pentium__)
+        #warning "x86 < pentium does NOT use bswap; must use -march=pentium to enable"
+      #endif
+      #define SWAPU32(x) __builtin_bswap32(x)
+    #else
+      static __inline__ uint32_t swapu32(uint32_t x)
+      {
+      __asm__ volatile("bswap %0":"=r"(x):"0"(x));
+      return x;
+      }
+      #define SWAPU32(x) swapu32(x)
+    #endif
   #endif
 
   #ifndef SWAPU32

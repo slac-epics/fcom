@@ -1,6 +1,8 @@
 fcom-R1-3-7:
     Built with udpComm-R2-1-5 (Which is linked to a new event module version):
     event-R3-2-2-br_generaltime-1-3
+    Till also fixed a bug related to compiling on RHEL5:
+    __builtin_swap32() only appeared in gcc-4.3; Till also fixed the gcc-version checking macros
 fcom-R1-3-6:
     Built with udpComm-R2-1-4 (Which is linked to a new event module version)
 

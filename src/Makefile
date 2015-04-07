@@ -12,8 +12,16 @@ PROD_HOST   += fcomrtst
 PROD_HOST   += fcomxtst
 PROD_HOST   += fcomitst
 PROD_HOST   += fcget
+
 PROD_IOC    += prototst
 PROD_IOC    += fcometst
+
+ifeq ($(T_A),linuxRT_glibc-x86_64)
+ PROD_IOC    += fcomrtst
+ PROD_IOC    += fcomxtst
+ PROD_IOC    += fcomitst
+ PROD_IOC    += fcget
+endif
 
 fcget_SRCS = fcget.c
 fcget_LIBS = fcom udpCommBSD

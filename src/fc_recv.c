@@ -1,4 +1,4 @@
-/* $Id: fc_recv.c,v 1.9 2010/04/22 02:13:39 strauman Exp $ */
+/* $Id: fc_recv.c,v 1.10 2010/04/22 18:42:49 strauman Exp $ */
 
 /* 
  * Implementation of the FCOM receiver's high-level parts.
@@ -605,6 +605,10 @@ void          *garb;
 	if ( supp_sync )
 		return FCOM_ERR_UNSUPP;
 #endif	
+	if ( fcom_rsd < 0 ) {
+		fprintf(stderr,"fcomSubscribe error: FCOM uninitialized!\nCall fcomInit in st.cmd!\n");
+		abort();
+	}
 
 	/* hashtable assumes blob V1 layout to locate key */
 	if ( NOT_V1(idnt) )

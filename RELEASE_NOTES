@@ -1,3 +1,7 @@
+fcom-R1-3-29 (bhill)
+    Add check in fcomSubscribe() for successful fcomInit()
+	Updated README w/ info on fcomIocshSupport
+
 fcom-R1-3-28 (scondam)
     Build with udpComm-R2-5-9
 	

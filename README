@@ -7,6 +7,10 @@
     o link with -ludpCommBSD (for FCOM over the regular TCP/IP stack)
     o link with -ludpComm    (for FCOM over the dedicated stack -- RTEMS ONLY)
 
+ - For EPICS iocsh support, add these in your <APP>/src/Makefile
+	o <APP>_DBD  += fcomIocshSupport.dbd
+	o <APP>_LIBS += fcomIocshSupport
+
  - Programming (API) documentation is available in 'doc/fcom_icd.pdf'.
 
  - OS setup information 

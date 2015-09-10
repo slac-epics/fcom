@@ -1,4 +1,4 @@
-/* $Id: fcomrtst.c,v 1.5 2010/04/22 01:57:58 strauman Exp $ */
+/* $Id: fcomrtst.c,v 1.6 2010/04/22 02:06:27 strauman Exp $ */
 
 /* Test program for FCOM receiver
  *
@@ -58,7 +58,7 @@ FILE        *nif  = 0;
 FILE        *nof  = 0;
 
 	if ( ! (pref = getenv("FCOM_MC_PREFIX")) ) {
-		pref = "239.255.0.0:0";
+		pref = "239.255.0.0";
 	}
 
 	while ( (i=getopt(argc, argv, "at:p:i:o:")) > 0 ) {

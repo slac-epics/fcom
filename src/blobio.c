@@ -1,4 +1,4 @@
-/* $Id: blobio.c,v 1.2 2009/07/28 19:46:55 strauman Exp $ */
+/* $Id: blobio.c,v 1.3 2010/04/22 01:56:07 strauman Exp $ */
 
 /* Read/write a ASCII file (stdin) defining a sequence of
  * blobs and convert to/from C-representation.
@@ -66,6 +66,8 @@ int64_t val;
  * conversion :-(
  */
 	rval = fscanf(f,"%"SCNi64,&val);
+	if ( rval < 0 )
+		perror("fscanf");
 	*pv = (uint32_t)(val & 0xffffffff);
 	return rval;
 }
@@ -88,8 +90,10 @@ scanl(FILE *f, char *fld, uint32_t *pv)
 int     ch;
 
 	GCHR(f);
-	if ( !isalnum(ch) )
+	if ( !isalnum(ch) ) {
+		fprintf(stderr,"Not an alpha-numerical character: '%c'\n", ch);
 		return -1;
+	}
 	*fld++ = ch;
 	GCHR(f);
 	if ( isalnum(ch) ) {
@@ -152,6 +156,7 @@ fcom_get_blob_from_file(FILE *f, FcomBlobRef pb, int avail)
 uint32_t u;
 int      k,sz=0,err;
 char     key[10];
+int      rval;
 
 	if ( (avail-=sizeof(*pb)) < 0 ) {
 		fprintf(stderr,"No memory\n");
@@ -160,7 +165,7 @@ char     key[10];
 
 	/* First zero out */
 	memset(pb, 0, sizeof(*pb));
-	while ( scanl(f, key, &u) > 0 ) {
+	while ( (rval = scanl(f, key, &u)) > 0 ) {
 		if        ( ! strcmp(key,"ve") ) {
 			pb->fc_vers = u;
 		} else if ( ! strcmp(key,"id") ) {
@@ -240,7 +245,7 @@ char     key[10];
 		}
 		skiptoeol(f);
 	}
-	return -1;
+	return rval;
 }
 
 /* Write a blob in ASCII representation to a file 'f'.

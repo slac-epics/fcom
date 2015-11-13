@@ -1,3 +1,6 @@
+fcom-R1-3-30 (khkim)
+    Build with udpComm-R2-6-0
+    
 fcom-R1-3-29 (bhill)
     Add check in fcomSubscribe() for successful fcomInit()
 	Updated README w/ info on fcomIocshSupport

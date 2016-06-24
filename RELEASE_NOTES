@@ -1,3 +1,6 @@
+fcom-R1-3-34 (bhill)
+	Built w/ udpComm-R2-7-1 for miscUtils-R2-2-3
+
 fcom-R1-3-33 (scondam)
     Build with udpComm-R2-5-9-BR-2
 	udpComm-R2-5-9-BR-2 is built with event-R4-2-3 which has BSA upgrades

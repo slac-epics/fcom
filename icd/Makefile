@@ -30,8 +30,7 @@ include $(TOP)/configure/RULES
 	fi
 
 ifndef T_A
-# EPICS Makefile system quirk; they should use :: everywhere...
-realclean::
+realclean:
 	$(RM) $(DOCS)
 endif
 

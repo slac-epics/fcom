@@ -12,7 +12,7 @@
 #endif
 
 #if ! defined(__i386__) && !defined(__x86_64__) \
-    && !defined(__m68k__) \
+    && !defined(__m68k__) && !defined(__arm__) \
     && !defined(__PPC__) && !defined(__ppc__)
 #error "Unknown CPU; add to test if it uses IEEE floating-point format"
 /* Only CPUs using IEEE floating point format supported so far;
@@ -23,7 +23,7 @@
 #endif
 
 #if !defined(__LITTLE_ENDIAN__) && !defined(__BIG_ENDIAN__)
-    #if defined(__i386__) || defined(__x86_64__)
+    #if defined(__i386__) || defined(__x86_64__) || defined(__arm__)
         #define __LITTLE_ENDIAN__
     #elif defined(__m68k__)
         #define __BIG_ENDIAN__

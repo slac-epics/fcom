@@ -1,3 +1,7 @@
+R1.4.0 bhill, Jan 26, 2017
+	Updated build files for git workflow
+	Building w/ udpComm/R2.8.0
+
 fcom-R1-3-35 (carolina)
         Built w/ udpComm-R2-5-9-BR-3 for miscUtils-R2-2-3
 

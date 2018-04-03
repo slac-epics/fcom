@@ -78,5 +78,5 @@ config.h:
 	$(RM) conftst.c	conftst.log
 	echo '#include <pthread.h>' >>conftst.c
 	echo 'int blah() { return pthread_mutexattr_setprotocol(0, PTHREAD_PRIO_INHERIT); }' >> conftst.c
-	if $(COMPILE.c) conftst.c > conftst.log 2>&1 ; then echo '#define HAVE_PTHREAD_PRIO_INHERIT' >> $@ ; else echo '#undef HAVE_PTHREAD_PRIO_INHERIT' >> $@; fi
+	if $(COMPILE.c) -c conftst.c > conftst.log 2>&1 ; then echo '#define HAVE_PTHREAD_PRIO_INHERIT' >> $@ ; else echo '#undef HAVE_PTHREAD_PRIO_INHERIT' >> $@; fi
 

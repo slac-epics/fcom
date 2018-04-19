@@ -1,3 +1,6 @@
+R1.9.2 kim, Apr 18, 2018
+       build with udpComm R2.11.4
+
 R1.9.1 bhill, Apr 2, 2018
     Fix error in determining system support for HAVE_PTHREAD_PRIO_INHERIT.
     As of base 3.15 a change in how COMPILE.c is defined broke the fcom conftst.c check

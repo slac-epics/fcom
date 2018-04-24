@@ -3,9 +3,3 @@
 # Run "gnumake clean uninstall install" in the application
 # top directory each time this file is changed.
 -include $(TOP)/configure/RELEASE.local
-
-# Check for valid macro definitions for module release directories
-ifeq ($(wildcard $(UDPCOMM)/include),)
-$(error Invalid UDPCOMM: $(UDPCOMM))
-endif
-

@@ -1,3 +1,6 @@
+R1.9.9 Kukhee Kim, Aug 18, 2018 
+       build with udpComm R2.11.8 (support event)
+
 R1.9.8 Kukhee Kim, June 28, 2018
        build with udpComm R2.20.3 (support evrClient)
 

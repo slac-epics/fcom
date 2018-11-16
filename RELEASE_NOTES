@@ -1,3 +1,6 @@
+R1.9.17 Kukhee Kim, Nov 15, 2018
+        build with udpComm 2.11.12 (support evnet)
+
 R1.9.16 Kukhee Kim, Nov 13, 2018
         build with udpComm R2.20.7 (support evrClient)
 

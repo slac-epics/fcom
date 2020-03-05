@@ -36,7 +36,7 @@ EPICS_MODULES=$(MODULES_SITE_TOP)
 # the appropriate version dependencies
 # http://www-group.slac.stanford.edu/cdsoft/epics/swModules3.htm
 # ===============================================================
-UDPCOMM_MODULE_VERSION=udpComm-R2-5-9
+UDPCOMM_MODULE_VERSION=udpComm-R2-5-9-BR-6
 
 # ============================================================
 # External Support

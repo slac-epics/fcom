@@ -19,7 +19,7 @@
 # Don't set your version to anything such as "test" that
 # could match a directory name.
 # ==========================================================
-UDPCOMM_MODULE_VERSION	= R2.11.15
+UDPCOMM_MODULE_VERSION	= R2.11.17
 
 # ==========================================================
 # Define module paths using pattern

@@ -1,4 +1,5 @@
 R1.9.30 Kukhee Kim, June 16, 2022 (support evrClient)
+        build with udpComm R2.21.1
 
 R1.9.29 Kukhee Kim, June 16, 2022 (support event)
         Build with udpComm R2.13.1

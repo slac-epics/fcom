@@ -1,4 +1,7 @@
-R1.9.32 J. Lorelli May 3rd, 2023 (support event)
+R1.9.33 J. Lorelli October 14th, 2024
+        Add USE_TIRPC flag to support rhel8+ builds
+
+R1.9.32 J. Lorelli May 3rd, 2024 (support event)
         build with udpComm R2.13.3
 
 R1.9.31 K. Luchini Jan 27, 2023 (support event)

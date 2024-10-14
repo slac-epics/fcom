@@ -52,6 +52,12 @@ fcom_SRCS += blobio.c
 fcom_SRCS += fc_send.c xdr_enc.c
 fcom_SRCS += fc_recv.c xdr_dec.c shtbl.c
 
+ifeq ($(USE_TIRPC),YES)
+	fcom_SYS_LIBS+=tirpc
+	USR_INCLUDES+=-I/usr/include/tirpc
+	prototst_SYS_LIBS+=tirpc
+endif
+
 USR_CPPFLAGS=  -DUSE_PTHREADS -DSUPPORT_SYNCGET -DSUPPORT_SETS
 # note that for profiling fc_recv.c lanIpBasic must also
 # be built with profiling enabled

@@ -7,4 +7,4 @@ lib
 RELEASE_SITE
 O.*
 *.log
-icd/*
+apply_license_log.txt
